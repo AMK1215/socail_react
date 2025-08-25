@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useInfiniteQuery, useQueryClient } from 'react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Heart, MessageCircle, Share2, MoreHorizontal, Image, Video, Link as LinkIcon } from 'lucide-react';

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Users, UserPlus, Clock, Check, X, MessageCircle } from 'lucide-react';
 import { api } from '../../services/api';
 import { Link, useNavigate } from 'react-router-dom';

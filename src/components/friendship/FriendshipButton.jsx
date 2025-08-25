@@ -1,5 +1,5 @@
 import React from 'react';
-import { useMutation, useQueryClient, useQuery } from 'react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { UserPlus, UserCheck, UserX, Clock, Check, X } from 'lucide-react';
 import { api } from '../../services/api';
 import { toast } from 'react-hot-toast';
