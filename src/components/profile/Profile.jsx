@@ -45,9 +45,9 @@ const Profile = () => {
 
 
   // Fetch profile data
-  const { data: profileData, isLoading, error } = useQuery(
-    ['profile', profileUserId],
-    async () => {
+  const { data: profileData, isLoading, error } = useQuery({
+    queryKey: ['profile', profileUserId],
+    queryFn: async () => {
       if (isOwnProfile) {
         const response = await api.get('/me');
         return response.data.data.user;
@@ -56,28 +56,24 @@ const Profile = () => {
         return response.data.data;
       }
     },
-    {
-      enabled: !!profileUserId,
-    }
-  );
+    enabled: !!profileUserId,
+  });
 
   // Fetch user posts
-  const { data: postsData, error: postsError, isLoading: postsLoading } = useQuery(
-    ['userPosts', profileUserId],
-    async () => {
+  const { data: postsData, error: postsError, isLoading: postsLoading } = useQuery({
+    queryKey: ['userPosts', profileUserId],
+    queryFn: async () => {
       const response = await api.get(`/users/${profileUserId}/posts`);
       return response.data.data;
     },
-    {
-      enabled: !!profileUserId,
-    }
-  );
+    enabled: !!profileUserId,
+  });
 
 
 
   // Update profile mutation
-  const updateProfileMutation = useMutation(
-    async (data) => {
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data) => {
       const response = await api.put('/profiles', data, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -85,54 +81,48 @@ const Profile = () => {
       });
       return response.data;
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(['profile', profileUserId]);
-        toast.success('Profile updated successfully!');
-        setIsEditing(false);
-        setShowCoverEdit(false);
-        setShowAvatarEdit(false);
-      },
-      onError: (error) => {
-        console.error('Profile update error:', error.response?.data);
-        toast.error(error.response?.data?.message || 'Failed to update profile');
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile', profileUserId] });
+      toast.success('Profile updated successfully!');
+      setIsEditing(false);
+      setShowCoverEdit(false);
+      setShowAvatarEdit(false);
+    },
+    onError: (error) => {
+      console.error('Profile update error:', error.response?.data);
+      toast.error(error.response?.data?.message || 'Failed to update profile');
+    },
+  });
 
   // Send friend request mutation
-  const sendFriendRequestMutation = useMutation(
-    async () => {
+  const sendFriendRequestMutation = useMutation({
+    mutationFn: async () => {
       const response = await api.post(`/friends/${profileUserId}`);
       return response.data;
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(['profile', profileUserId]);
-        toast.success('Friend request sent!');
-      },
-      onError: () => {
-        toast.error('Failed to send friend request');
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile', profileUserId] });
+      toast.success('Friend request sent!');
+    },
+    onError: () => {
+      toast.error('Failed to send friend request');
+    },
+  });
 
   // Respond to friend request mutation
-  const respondToFriendRequestMutation = useMutation(
-    async ({ friendshipId, action }) => {
+  const respondToFriendRequestMutation = useMutation({
+    mutationFn: async ({ friendshipId, action }) => {
       const response = await api.put(`/friends/${friendshipId}`, { action });
       return response.data;
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(['profile', profileUserId]);
-        toast.success('Friend request updated!');
-      },
-      onError: () => {
-        toast.error('Failed to update friend request');
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile', profileUserId] });
+      toast.success('Friend request updated!');
+    },
+    onError: () => {
+      toast.error('Failed to update friend request');
+    },
+  });
 
   const handleProfileUpdate = (data) => {
     // If data is FormData (from file upload), use it directly

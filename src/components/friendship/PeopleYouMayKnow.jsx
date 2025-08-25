@@ -9,66 +9,58 @@ const PeopleYouMayKnow = () => {
   const queryClient = useQueryClient();
 
   // Fetch suggested friends
-  const { data: suggestedData, isLoading: suggestedLoading, error: suggestedError } = useQuery(
-    'suggestedFriends',
-    async () => {
+  const { data: suggestedData, isLoading: suggestedLoading, error: suggestedError } = useQuery({
+    queryKey: ['suggestedFriends'],
+    queryFn: async () => {
       const response = await api.get('/friends/suggested');
       return response.data;
     },
-    {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      refetchOnWindowFocus: false,
-    }
-  );
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  });
 
   // Fetch current user's sent friend requests to filter them out
-  const { data: sentRequestsData, isLoading: sentRequestsLoading } = useQuery(
-    'sentFriendRequests',
-    async () => {
+  const { data: sentRequestsData, isLoading: sentRequestsLoading } = useQuery({
+    queryKey: ['sentFriendRequests'],
+    queryFn: async () => {
       const response = await api.get('/friends');
       return response.data;
     },
-    {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      refetchOnWindowFocus: false,
-    }
-  );
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  });
 
   // Send friend request mutation
-  const sendRequestMutation = useMutation(
-    async (userId) => {
+  const sendRequestMutation = useMutation({
+    mutationFn: async (userId) => {
       const response = await api.post(`/friends/${userId}`);
       return response.data;
     },
-    {
-      onSuccess: (data, userId) => {
-        toast.success('Friend request sent!');
-        // Remove the user from suggestions after sending request
-        setDismissedUsers(prev => new Set([...prev, userId]));
-        // Refresh both queries to get updated data
-        queryClient.invalidateQueries('suggestedFriends');
-        queryClient.invalidateQueries('sentFriendRequests');
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to send friend request');
-      },
-    }
-  );
+    onSuccess: (data, userId) => {
+      toast.success('Friend request sent!');
+      // Remove the user from suggestions after sending request
+      setDismissedUsers(prev => new Set([...prev, userId]));
+      // Refresh both queries to get updated data
+      queryClient.invalidateQueries({ queryKey: ['suggestedFriends'] });
+      queryClient.invalidateQueries({ queryKey: ['sentFriendRequests'] });
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to send friend request');
+    },
+  });
 
   // Dismiss user mutation
-  const dismissUserMutation = useMutation(
-    async (userId) => {
+  const dismissUserMutation = useMutation({
+    mutationFn: async (userId) => {
       // For now, we'll just dismiss locally
       // You can add an API endpoint later if needed
       return { success: true };
     },
-    {
-      onSuccess: (data, userId) => {
-        setDismissedUsers(prev => new Set([...prev, userId]));
-        toast.success('User dismissed');
-      },
-    }
-  );
+    onSuccess: (data, userId) => {
+      setDismissedUsers(prev => new Set([...prev, userId]));
+      toast.success('User dismissed');
+    },
+  });
 
   const handleSendRequest = (userId) => {
     sendRequestMutation.mutate(userId);

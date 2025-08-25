@@ -42,51 +42,45 @@ const PostCard = ({ post, onUpdate }) => {
   const isOwnPost = post.user_id === user?.id;
 
   // Like/Unlike mutation
-  const likeMutation = useMutation(
-    async () => {
+  const likeMutation = useMutation({
+    mutationFn: async () => {
       const response = await api.post(`/posts/${post.id}/like`);
       return response.data;
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('posts');
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+    },
+  });
 
   // Add comment mutation
-  const commentMutation = useMutation(
-    async (content) => {
+  const commentMutation = useMutation({
+    mutationFn: async (content) => {
       const response = await api.post(`/posts/${post.id}/comments`, { content });
       return response.data;
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('posts');
-        setCommentText('');
-        toast.success('Comment added successfully!');
-      },
-      onError: () => {
-        toast.error('Failed to add comment');
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      setCommentText('');
+      toast.success('Comment added successfully!');
+    },
+    onError: () => {
+      toast.error('Failed to add comment');
+    },
+  });
 
   // Delete post mutation
-  const deleteMutation = useMutation(
-    async () => {
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
       await api.delete(`/posts/${post.id}`);
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('posts');
-        toast.success('Post deleted successfully!');
-      },
-      onError: () => {
-        toast.error('Failed to delete post');
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      toast.success('Post deleted successfully!');
+    },
+    onError: () => {
+      toast.error('Failed to delete post');
+    },
+  });
 
   const handleLike = () => {
     likeMutation.mutate();

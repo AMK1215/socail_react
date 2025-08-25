@@ -21,29 +21,27 @@ const Dashboard = () => {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useInfiniteQuery(
-    'posts',
-    async ({ pageParam = 1 }) => {
+  } = useInfiniteQuery({
+    queryKey: ['posts'],
+    queryFn: async ({ pageParam = 1 }) => {
       const response = await api.get(`/posts?page=${pageParam}`);
       return response.data;
     },
-    {
-      getNextPageParam: (lastPage, pages) => {
-        // Check if there's a next page
-        if (lastPage.data.current_page < lastPage.data.last_page) {
-          return lastPage.data.current_page + 1;
-        }
-        return undefined;
-      },
-      refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    }
-  );
+    getNextPageParam: (lastPage, pages) => {
+      // Check if there's a next page
+      if (lastPage.data.current_page < lastPage.data.last_page) {
+        return lastPage.data.current_page + 1;
+      }
+      return undefined;
+    },
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
   const handlePostCreated = () => {
     setShowCreatePost(false);
     // Invalidate and refetch posts to show the new post
-    queryClient.invalidateQueries('posts');
+    queryClient.invalidateQueries({ queryKey: ['posts'] });
     toast.success('Post created successfully!');
   };
 
@@ -70,7 +68,7 @@ const Dashboard = () => {
         <div className="text-center">
           <p className="text-red-600 mb-4">Error loading posts</p>
           <button
-            onClick={() => queryClient.invalidateQueries('posts')}
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['posts'] })}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             Try again
@@ -142,7 +140,7 @@ const Dashboard = () => {
           </div>
         ) : (
           allPosts.map((post) => (
-            <PostCard key={post.id} post={post} onUpdate={() => queryClient.invalidateQueries('posts')} />
+            <PostCard key={post.id} post={post} onUpdate={() => queryClient.invalidateQueries({ queryKey: ['posts'] })} />
           ))
         )}
       </div>

@@ -42,8 +42,8 @@ const CreatePost = ({ onClose, onPostCreated }) => {
   const content = watch('content', '');
 
   // Create post mutation
-  const createPostMutation = useMutation(
-    async (data) => {
+  const createPostMutation = useMutation({
+    mutationFn: async (data) => {
       const formData = new FormData();
       formData.append('content', data.content);
       formData.append('type', postType);
@@ -65,18 +65,16 @@ const CreatePost = ({ onClose, onPostCreated }) => {
       });
       return response.data;
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('posts');
-        toast.success('Post created successfully!');
-        handleClose();
-        onPostCreated?.();
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to create post');
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      toast.success('Post created successfully!');
+      handleClose();
+      onPostCreated?.();
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to create post');
+    },
+  });
 
   const handleFileSelect = (event) => {
     const files = Array.from(event.target.files);

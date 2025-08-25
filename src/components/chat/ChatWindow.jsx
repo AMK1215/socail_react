@@ -15,58 +15,54 @@ const ChatWindow = ({ conversation, onBack }) => {
   const queryClient = useQueryClient();
 
   // Fetch messages
-  const { data: messagesData, isLoading } = useQuery(
-    ['messages', conversation?.id],
-    async () => {
+  const { data: messagesData, isLoading } = useQuery({
+    queryKey: ['messages', conversation?.id],
+    queryFn: async () => {
       if (!conversation) return { data: { data: [] } };
       const response = await api.get(`/conversations/${conversation.id}/messages`);
       return response.data;
     },
-    {
-      enabled: !!conversation,
-      refetchInterval: 5000,
-    }
-  );
+    enabled: !!conversation,
+    refetchInterval: 5000,
+  });
 
   const messages = messagesData?.data?.data || [];
 
   // Send message mutation
-  const sendMessageMutation = useMutation(
-    async (messageData) => {
+  const sendMessageMutation = useMutation({
+    mutationFn: async (messageData) => {
       const response = await api.post(`/conversations/${conversation.id}/messages`, messageData);
       return response.data;
     },
-    {
-      onSuccess: (data) => {
-        // Immediately add the new message to the local state
-        queryClient.setQueryData(['messages', conversation.id], (oldData) => {
-          if (!oldData?.data?.data) return oldData;
-          return {
-            ...oldData,
-            data: {
-              ...oldData.data,
-              data: [...oldData.data.data, data.data]
-            }
-          };
-        });
-        
-        // Also invalidate to ensure consistency
-        queryClient.invalidateQueries(['messages', conversation.id]);
-        queryClient.invalidateQueries(['conversations']);
-        setMessage('');
-        scrollToBottom();
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to send message');
-      },
-    }
-  );
+    onSuccess: (data) => {
+      // Immediately add the new message to the local state
+      queryClient.setQueryData(['messages', conversation.id], (oldData) => {
+        if (!oldData?.data?.data) return oldData;
+        return {
+          ...oldData,
+          data: {
+            ...oldData.data,
+            data: [...oldData.data.data, data.data]
+          }
+        };
+      });
+      
+      // Also invalidate to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ['messages', conversation.id] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      setMessage('');
+      scrollToBottom();
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to send message');
+    },
+  });
 
   // Real-time broadcasting
   useConversationMessages(conversation?.id, (data) => {
     if (data.type === 'new_message') {
-      queryClient.invalidateQueries(['messages', conversation.id]);
-      queryClient.invalidateQueries(['conversations']);
+      queryClient.invalidateQueries({ queryKey: ['messages', conversation.id] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
       scrollToBottom();
     }
   });

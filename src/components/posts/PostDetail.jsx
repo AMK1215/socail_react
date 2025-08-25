@@ -18,61 +18,53 @@ const PostDetail = () => {
     const [editContent, setEditContent] = useState('');
 
     // Fetch post details
-    const { data: postData, isLoading, error } = useQuery(
-        ['post', id],
-        () => api.get(`/posts/${id}`),
-        {
-            enabled: !!id,
-        }
-    );
+    const { data: postData, isLoading, error } = useQuery({
+        queryKey: ['post', id],
+        queryFn: () => api.get(`/posts/${id}`),
+        enabled: !!id,
+    });
 
     const post = postData?.data;
 
     // Like/Unlike mutation
-    const likeMutation = useMutation(
-        () => api.post(`/posts/${id}/like`),
-        {
-            onSuccess: () => {
-                queryClient.invalidateQueries(['post', id]);
-                queryClient.invalidateQueries('posts');
-            },
-        }
-    );
+    const likeMutation = useMutation({
+        mutationFn: () => api.post(`/posts/${id}/like`),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['post', id] });
+            queryClient.invalidateQueries({ queryKey: ['posts'] });
+        },
+    });
 
     // Update post mutation
-    const updateMutation = useMutation(
-        (content) => api.put(`/posts/${id}`, { content }),
-        {
-            onSuccess: () => {
-                queryClient.invalidateQueries(['post', id]);
-                queryClient.invalidateQueries('posts');
-                setIsEditing(false);
-                toast.success('Post updated successfully');
-            },
-            onError: (error) => {
-                toast.error(error.response?.data?.message || 'Failed to update post');
-            },
-        }
-    );
+    const updateMutation = useMutation({
+        mutationFn: (content) => api.put(`/posts/${id}`, { content }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['post', id] });
+            queryClient.invalidateQueries({ queryKey: ['posts'] });
+            setIsEditing(false);
+            toast.success('Post updated successfully');
+        },
+        onError: (error) => {
+            toast.error(error.response?.data?.message || 'Failed to update post');
+        },
+    });
 
     // Delete post mutation
-    const deleteMutation = useMutation(
-        () => api.delete(`/posts/${id}`),
-        {
-            onSuccess: () => {
-                toast.success('Post deleted successfully');
-                navigate('/');
-            },
-            onError: (error) => {
-                toast.error(error.response?.data?.message || 'Failed to delete post');
-            },
-        }
-    );
+    const deleteMutation = useMutation({
+        mutationFn: () => api.delete(`/posts/${id}`),
+        onSuccess: () => {
+            toast.success('Post deleted successfully');
+            navigate('/');
+        },
+        onError: (error) => {
+            toast.error(error.response?.data?.message || 'Failed to delete post');
+        },
+    });
 
     // Real-time updates for this post
     usePostUpdates(id, (data) => {
         if (data.type === 'post_liked') {
-            queryClient.invalidateQueries(['post', id]);
+            queryClient.invalidateQueries({ queryKey: ['post', id] });
         }
     });
 
