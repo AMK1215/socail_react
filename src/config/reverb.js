@@ -1,10 +1,10 @@
 // Laravel Reverb configuration
 export const REVERB_CONFIG = {
-    appKey: import.meta.env.VITE_REVERB_APP_KEY || 'rtk5ssu7lwwd90gwtdou',
-    host: import.meta.env.VITE_REVERB_HOST || 'localhost',
-    port: import.meta.env.VITE_REVERB_PORT || 8081,
-    scheme: import.meta.env.VITE_REVERB_SCHEME || 'http',
-    authEndpoint: '/api/broadcasting/auth',
+    appKey: 'qlgzrt6nvzuux1a4eliu', // Updated to match environment variable
+    host: 'luckymillion.online', // Updated to match actual domain
+    port: 443, // Use HTTPS port (443) since Nginx will proxy to Reverb
+    scheme: 'https', // Use HTTPS since we're going through Nginx
+    // authEndpoint is now dynamically constructed in broadcasting.js
 };
 
 console.log('Environment variables:', {
@@ -16,9 +16,9 @@ console.log('Environment variables:', {
 
 // Default values for development
 export const DEFAULT_REVERB_CONFIG = {
-    appKey: 'rtk5ssu7lwwd90gwtdou',
-    host: 'localhost',
-    port: 8081,
-    scheme: 'http',
-    authEndpoint: '/api/broadcasting/auth',
+    appKey: 'qlgzrt6nvzuux1a4eliu', // Updated to match environment variable
+    host: 'luckymillion.online', // Updated to match actual domain
+    port: 443, // Use HTTPS port (443) since Nginx will proxy to Reverb
+    scheme: 'https', // Use HTTPS since we're going through Nginx
+    // authEndpoint is now dynamically constructed in broadcasting.js
 };

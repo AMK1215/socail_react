@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance
 export const api = axios.create({
-  baseURL: 'https://luckymillion.pro/api',
+  baseURL: 'https://luckymillion.online/api',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -50,8 +50,9 @@ export const endpoints = {
   likePost: (id) => `/posts/${id}/like`,
   
   // Profiles
-  profiles: '/profiles',
-  profile: (id) => `/profiles/${id}`,
+  profiles: '/profiles', // Current user's profile
+  profileUsers: '/profiles/users', // All other users
+  profile: (id) => `/profiles/${id}`, // Specific user profile
   
   // Friendships
   friends: '/friends',

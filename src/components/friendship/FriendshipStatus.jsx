@@ -8,9 +8,9 @@ const FriendshipStatus = ({ currentUserId, targetUserId }) => {
     return null;
   }
 
-  const { data: friendshipData, isLoading } = useQuery(
-    ['friendship-status', currentUserId, targetUserId],
-    async () => {
+  const { data: friendshipData, isLoading } = useQuery({
+    queryKey: ['friendship-status', currentUserId, targetUserId],
+    queryFn: async () => {
       try {
         const response = await api.get(`/friendships/status/${targetUserId}`);
         return response.data;
@@ -22,11 +22,9 @@ const FriendshipStatus = ({ currentUserId, targetUserId }) => {
         throw error;
       }
     },
-    {
-      retry: false,
-      refetchOnWindowFocus: false,
-    }
-  );
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
 
   if (isLoading) {
     return (

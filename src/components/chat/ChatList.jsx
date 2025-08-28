@@ -12,9 +12,9 @@ const ChatList = ({ onSelectConversation, selectedConversationId }) => {
   const queryClient = useQueryClient();
 
   // Fetch conversations with search
-  const { data: conversationsData, isLoading, error } = useQuery(
-    ['conversations', searchQuery],
-    async () => {
+  const { data: conversationsData, isLoading, error } = useQuery({
+    queryKey: ['conversations', searchQuery],
+    queryFn: async () => {
       if (searchQuery.trim()) {
         const response = await api.get(`/conversations/search?query=${encodeURIComponent(searchQuery)}`);
         return response.data;
@@ -23,11 +23,9 @@ const ChatList = ({ onSelectConversation, selectedConversationId }) => {
         return response.data;
       }
     },
-    {
-      refetchInterval: 10000, // Refresh every 10 seconds
-      staleTime: 5000,
-    }
-  );
+    refetchInterval: 10000, // Refresh every 10 seconds
+    staleTime: 5000,
+  });
 
   const conversations = conversationsData?.data || [];
 

@@ -1,51 +1,167 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Users, UserPlus, Clock, Check, X, MessageCircle } from 'lucide-react';
 import { api } from '../../services/api';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import broadcastingService from '../../services/broadcasting';
+import { useAuth } from '../../contexts/AuthContext';
 
 const FriendsList = ({ userId }) => {
   const [activeTab, setActiveTab] = useState('friends');
   const [checkingConversation, setCheckingConversation] = useState(false);
+  const [notifications, setNotifications] = useState([]);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Add notification function
+  const addNotification = (message, type = 'info') => {
+    const id = Date.now();
+    const notification = { id, message, type };
+    setNotifications(prev => [...prev, notification]);
+    
+    // Auto-remove notification after 5 seconds
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  };
+
+  // Set up real-time friend request updates
+  useEffect(() => {
+    if (user?.id) {
+      // Listen for new friend requests
+      const channel = broadcastingService.subscribeToPrivateChannel(
+        `user.${user.id}`,
+        'friendship.request_received',
+        (data) => {
+          console.log('New friend request received:', data);
+          // Refresh pending requests
+          queryClient.invalidateQueries({ queryKey: ['pending-requests'] });
+          
+          // Show notification
+          const userName = data.user?.name || 'Someone';
+          addNotification(`New friend request from ${userName}!`, 'success');
+          
+          // Switch to pending tab to show the new request
+          setActiveTab('pending');
+        }
+      );
+
+      // Listen for friendship status changes
+      const friendshipChannel = broadcastingService.subscribeToPrivateChannel(
+        `user.${user.id}`,
+        'friendship.status_changed',
+        (data) => {
+          console.log('Friendship status changed:', data);
+          // Refresh friends list and pending requests
+          queryClient.invalidateQueries({ queryKey: ['friends', userId] });
+          queryClient.invalidateQueries({ queryKey: ['pending-requests'] });
+          
+          // Show notification
+          addNotification('Friendship status updated!', 'info');
+        }
+      );
+
+      return () => {
+        broadcastingService.unsubscribeFromChannel(`user.${user.id}`);
+        broadcastingService.unsubscribeFromChannel(`user.${user.id}`);
+      };
+    }
+  }, [user?.id, userId, queryClient]);
 
   // Accept friend request mutation
-  const acceptRequestMutation = useMutation(
-    async (friendshipId) => {
+  const acceptRequestMutation = useMutation({
+    mutationFn: async (friendshipId) => {
       const response = await api.put(`/friendships/${friendshipId}`, { action: 'accept' });
       return response.data;
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(['friends', userId]);
-        queryClient.invalidateQueries(['pending-requests']);
-        toast.success('Friend request accepted!');
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to accept friend request');
-      },
-    }
-  );
+    onSuccess: (data, friendshipId) => {
+      // Get the friendship data to extract user info
+      const acceptedRequest = pendingData?.data?.find(req => req.id === friendshipId);
+      
+      if (acceptedRequest) {
+        // Optimistically update the friends list by adding the accepted user
+        queryClient.setQueryData(['friends', userId], (oldData) => {
+          if (!oldData?.data?.friends?.data) return oldData;
+          
+          const newFriendsList = {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              friends: {
+                ...oldData.data.friends,
+                data: [
+                  acceptedRequest.user, // Add the accepted user to friends list
+                  ...oldData.data.friends.data
+                ]
+              }
+            }
+          };
+          
+          return newFriendsList;
+        });
+
+        // Remove the accepted request from pending requests
+        queryClient.setQueryData(['pending-requests'], (oldData) => {
+          if (!oldData?.data) return oldData;
+          
+          return {
+            ...oldData,
+            data: oldData.data.filter(req => req.id !== friendshipId)
+          };
+        });
+
+        // Also invalidate to ensure fresh data
+        queryClient.invalidateQueries({ queryKey: ['friends', userId] });
+        queryClient.invalidateQueries({ queryKey: ['pending-requests'] });
+        
+        // Show success message with the user's name
+        const userName = acceptedRequest.user?.name || 'Friend';
+        toast.success(`${userName} is now your friend!`);
+        
+        // Automatically switch to friends tab to show the new friend
+        setActiveTab('friends');
+      }
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to accept friend request');
+    },
+  });
 
   // Reject friend request mutation
-  const rejectRequestMutation = useMutation(
-    async (friendshipId) => {
+  const rejectRequestMutation = useMutation({
+    mutationFn: async (friendshipId) => {
       const response = await api.put(`/friendships/${friendshipId}`, { action: 'reject' });
       return response.data;
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(['friends', userId]);
-        queryClient.invalidateQueries(['pending-requests']);
-        toast.success('Friend request rejected');
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to reject friend request');
-      },
-    }
-  );
+    onSuccess: (data, friendshipId) => {
+      // Get the friendship data to extract user info
+      const rejectedRequest = pendingData?.data?.find(req => req.id === friendshipId);
+      
+      if (rejectedRequest) {
+        // Optimistically remove the rejected request from pending requests
+        queryClient.setQueryData(['pending-requests'], (oldData) => {
+          if (!oldData?.data) return oldData;
+          
+          return {
+            ...oldData,
+            data: oldData.data.filter(req => req.id !== friendshipId)
+          };
+        });
+
+        // Also invalidate to ensure fresh data
+        queryClient.invalidateQueries({ queryKey: ['pending-requests'] });
+        
+        // Show success message with the user's name
+        const userName = rejectedRequest.user?.name || 'Friend request';
+        toast.success(`${userName} rejected`);
+      }
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to reject friend request');
+    },
+  });
 
   const handleAcceptRequest = (friendshipId) => {
     acceptRequestMutation.mutate(friendshipId);
@@ -56,53 +172,49 @@ const FriendsList = ({ userId }) => {
   };
 
   // Send friend request mutation
-  const sendRequestMutation = useMutation(
-    async (targetUserId) => {
+  const sendRequestMutation = useMutation({
+    mutationFn: async (targetUserId) => {
       const response = await api.post(`/friends/${targetUserId}`);
       return response.data;
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(['friends', userId]);
-        queryClient.invalidateQueries(['suggested-friends']);
-        toast.success('Friend request sent!');
-      },
-      onError: (error) => {
-        console.error('Friend request error:', error.response?.data);
-        toast.error(error.response?.data?.message || 'Failed to send friend request');
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['friends', userId] });
+      queryClient.invalidateQueries({ queryKey: ['suggested-friends'] });
+      toast.success('Friend request sent!');
+    },
+    onError: (error) => {
+      console.error('Friend request error:', error.response?.data);
+      toast.error(error.response?.data?.message || 'Failed to send friend request');
+    },
+  });
 
   const handleSendFriendRequest = (targetUserId) => {
     sendRequestMutation.mutate(targetUserId);
   };
 
   // Start conversation with friend
-  const startConversationMutation = useMutation(
-    async (friendId) => {
+  const startConversationMutation = useMutation({
+    mutationFn: async (friendId) => {
       const response = await api.post(`/conversations/start/${friendId}`);
       return response.data;
     },
-    {
-      onSuccess: (data) => {
-        // Invalidate conversations cache to refresh the list
-        queryClient.invalidateQueries(['conversations']);
-        
-        // Navigate to chat with the conversation selected
-        navigate('/chat', { 
-          state: { 
-            selectedConversationId: data.data.id,
-            conversation: data.data
-          } 
-        });
-        toast.success('Chat opened with ' + data.data.users.find(u => u.id !== userId)?.name);
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to start conversation');
-      },
-    }
-  );
+    onSuccess: (data) => {
+      // Invalidate conversations cache to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      
+      // Navigate to chat with the conversation selected
+      navigate('/chat', { 
+        state: { 
+          selectedConversationId: data.data.id,
+          conversation: data.data
+        } 
+      });
+      toast.success('Chat opened with ' + data.data.users.find(u => u.id !== userId)?.name);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to start conversation');
+    },
+  });
 
   // Check if conversation exists and navigate to it
   const checkAndNavigateToConversation = async (friendId) => {
@@ -150,47 +262,45 @@ const FriendsList = ({ userId }) => {
   };
 
   // Fetch friends
-  const { data: friendsData, isLoading: friendsLoading } = useQuery(
-    ['friends', userId],
-    async () => {
+  const { data: friendsData, isLoading: friendsLoading } = useQuery({
+    queryKey: ['friends', userId],
+    queryFn: async () => {
       const response = await api.get(`/friends`);
       return response.data;
     },
-    { enabled: activeTab === 'friends' }
-  );
+    enabled: activeTab === 'friends'
+  });
 
   // Fetch pending requests
-  const { data: pendingData, isLoading: pendingLoading } = useQuery(
-    ['pending-requests'],
-    async () => {
+  const { data: pendingData, isLoading: pendingLoading } = useQuery({
+    queryKey: ['pending-requests'],
+    queryFn: async () => {
       const response = await api.get(`/friendships/pending`);
       return response.data;
     },
-    { enabled: activeTab === 'pending' }
-  );
+    enabled: activeTab === 'pending'
+  });
 
   // Fetch suggested friends
-  const { data: suggestedData, isLoading: suggestedLoading } = useQuery(
-    ['suggested-friends'],
-    async () => {
+  const { data: suggestedData, isLoading: suggestedLoading } = useQuery({
+    queryKey: ['suggested-friends'],
+    queryFn: async () => {
       const response = await api.get(`/friends/suggested`);
       return response.data;
     },
-    { enabled: activeTab === 'suggested' }
-  );
+    enabled: activeTab === 'suggested'
+  });
 
   // Fetch conversations to check for existing ones
-  const { data: conversationsData } = useQuery(
-    ['conversations'],
-    async () => {
+  const { data: conversationsData } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: async () => {
       const response = await api.get('/conversations');
       return response.data;
     },
-    { 
-      enabled: true, // Always fetch conversations
-      staleTime: 30000, // Cache for 30 seconds
-    }
-  );
+    enabled: true, // Always fetch conversations
+    staleTime: 30000, // Cache for 30 seconds
+  });
 
   const conversations = conversationsData?.data || [];
 
@@ -224,18 +334,28 @@ const FriendsList = ({ userId }) => {
         <div className="text-center py-8 text-gray-500">
           <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
           <p>No friends yet</p>
-          <p className="text-sm">Start connecting with people!</p>
+          <p className="text-sm text-gray-400">Start connecting with people!</p>
+          <button
+            onClick={() => setActiveTab('suggested')}
+            className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Find Friends
+          </button>
         </div>
       );
     }
 
     return (
       <div className="space-y-3">
-        {friendsData.data.friends.data.map((friendship) => {
+        {friendsData.data.friends.data.map((friendship, index) => {
           // The backend returns the friend user directly, not a friendship object
           const friend = friendship;
+          const isNewFriend = index === 0; // First friend in the list is the newest
+          
           return (
-            <div key={friend.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
+            <div key={friend.id} className={`flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-all duration-200 ${
+              isNewFriend ? 'border-blue-300 bg-blue-50' : ''
+            }`}>
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
                   {friend.profile?.avatar_url ? (
@@ -251,12 +371,19 @@ const FriendsList = ({ userId }) => {
                   )}
                 </div>
                 <div>
-                  <Link
-                    to={`/profile/${friend.id}`}
-                    className="font-medium text-gray-900 hover:text-blue-600 transition-colors"
-                  >
-                    {friend.name}
-                  </Link>
+                  <div className="flex items-center space-x-2">
+                    <Link
+                      to={`/profile/${friend.id}`}
+                      className="font-medium text-gray-900 hover:text-blue-600 transition-colors"
+                    >
+                      {friend.name}
+                    </Link>
+                    {isNewFriend && (
+                      <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full font-medium">
+                        New Friend
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-500">
                     @{friend.profile?.username || 'user'}
                   </p>
@@ -274,6 +401,17 @@ const FriendsList = ({ userId }) => {
                    ) : (
                      <MessageCircle className="w-4 h-4" />
                    )}
+                 </button>
+                 <button
+                   onClick={() => {
+                     // This will open the floating chat box
+                     // You can implement this by passing a callback from parent
+                     console.log('Quick chat with:', friend.name);
+                   }}
+                   className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors transition-all duration-200 hover:scale-105"
+                   title="Quick chat"
+                 >
+                   <MessageCircle className="w-4 h-4" />
                  </button>
                </div>
             </div>
@@ -307,6 +445,7 @@ const FriendsList = ({ userId }) => {
         <div className="text-center py-8 text-gray-500">
           <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
           <p>No pending requests</p>
+          <p className="text-sm text-gray-400">When someone sends you a friend request, it will appear here</p>
         </div>
       );
     }
@@ -317,8 +456,12 @@ const FriendsList = ({ userId }) => {
           // The backend returns friendship with user data loaded
           const requester = request.user;
           const friendshipId = request.id;
+          const isProcessing = acceptRequestMutation.isLoading || rejectRequestMutation.isLoading;
+          
           return (
-            <div key={requester.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+            <div key={requester.id} className={`flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 transition-all duration-200 ${
+              isProcessing ? 'opacity-75' : 'hover:shadow-sm'
+            }`}>
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
                   {requester.profile?.avatar_url ? (
@@ -343,24 +486,35 @@ const FriendsList = ({ userId }) => {
                   <p className="text-sm text-gray-500">
                     @{requester.profile?.username || 'user'}
                   </p>
+                  <p className="text-xs text-blue-600 font-medium">
+                    Wants to be your friend
+                  </p>
                 </div>
               </div>
               <div className="flex space-x-2">
                 <button 
                   onClick={() => handleAcceptRequest(friendshipId)}
-                  disabled={acceptRequestMutation.isLoading}
+                  disabled={isProcessing}
                   className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Accept request"
                 >
-                  <Check className="w-4 h-4" />
+                  {acceptRequestMutation.isLoading ? (
+                    <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
                 </button>
                 <button 
                   onClick={() => handleRejectRequest(friendshipId)}
-                  disabled={rejectRequestMutation.isLoading}
+                  disabled={isProcessing}
                   className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Reject request"
                 >
-                  <X className="w-4 h-4" />
+                  {rejectRequestMutation.isLoading ? (
+                    <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <X className="w-4 h-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -487,6 +641,32 @@ const FriendsList = ({ userId }) => {
       {/* Content */}
       <div className="p-6">
         {renderContent()}
+      </div>
+
+      {/* Floating Notifications */}
+      <div className="fixed top-4 right-4 z-50 space-y-2">
+        {notifications.map((notification) => (
+          <div
+            key={notification.id}
+            className={`px-4 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
+              notification.type === 'success' 
+                ? 'bg-green-500' 
+                : notification.type === 'error' 
+                ? 'bg-red-500' 
+                : 'bg-blue-500'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium">{notification.message}</span>
+              <button
+                onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+                className="text-white hover:text-gray-200 ml-2"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

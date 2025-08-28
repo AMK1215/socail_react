@@ -18,17 +18,25 @@ class BroadcastingService {
         // Configure Pusher client for Reverb
         window.Pusher = Pusher;
         
+        // Debug: Log the configuration being used
+        console.log('Reverb Configuration:', {
+            appKey: REVERB_CONFIG.appKey,
+            host: REVERB_CONFIG.host,
+            port: REVERB_CONFIG.port,
+            scheme: REVERB_CONFIG.scheme,
+            forceTLS: REVERB_CONFIG.scheme === 'https'
+        });
+
         this.echo = new Echo({
             broadcaster: 'reverb',
             key: REVERB_CONFIG.appKey,
-            cluster: 'mt1', // Required for Pusher compatibility
             wsHost: REVERB_CONFIG.host,
             wsPort: REVERB_CONFIG.port,
             wssPort: REVERB_CONFIG.port,
-            forceTLS: false,
+            forceTLS: true, // Enable forceTLS for HTTPS
             disableStats: true,
-            enabledTransports: ['ws'], // Only use ws for local development
-            authEndpoint: REVERB_CONFIG.authEndpoint,
+            enabledTransports: ['ws', 'wss'],
+            authEndpoint: `https://${REVERB_CONFIG.host}/api/broadcasting/auth`, // Use full HTTPS URL
             auth: {
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),

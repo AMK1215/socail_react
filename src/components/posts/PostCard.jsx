@@ -20,13 +20,12 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
+import CommentsSection from '../comments/CommentsSection';
 
 const PostCard = ({ post, onUpdate }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showActions, setShowActions] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [commentText, setCommentText] = useState('');
   const [showFullContent, setShowFullContent] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -52,21 +51,7 @@ const PostCard = ({ post, onUpdate }) => {
     },
   });
 
-  // Add comment mutation
-  const commentMutation = useMutation({
-    mutationFn: async (content) => {
-      const response = await api.post(`/posts/${post.id}/comments`, { content });
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['posts'] });
-      setCommentText('');
-      toast.success('Comment added successfully!');
-    },
-    onError: () => {
-      toast.error('Failed to add comment');
-    },
-  });
+
 
   // Delete post mutation
   const deleteMutation = useMutation({
@@ -86,12 +71,7 @@ const PostCard = ({ post, onUpdate }) => {
     likeMutation.mutate();
   };
 
-  const handleComment = (e) => {
-    e.preventDefault();
-    if (commentText.trim()) {
-      commentMutation.mutate(commentText);
-    }
-  };
+
 
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to delete this post?')) {
@@ -221,13 +201,13 @@ const PostCard = ({ post, onUpdate }) => {
   ];
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 overflow-hidden" data-post-id={post.id}>
       {/* Post Header */}
-      <div className="p-4 border-b border-gray-100">
+      <div className="p-3 sm:p-4 border-b border-gray-100">
         <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 flex-1 min-w-0">
             <Link to={`/profile/${post.user.id}`} className="flex-shrink-0">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+              <div className="w-11 h-11 sm:w-10 sm:h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
                 <span className="text-white font-semibold text-lg">
                   {post.user?.name?.charAt(0).toUpperCase()}
                 </span>
@@ -235,35 +215,48 @@ const PostCard = ({ post, onUpdate }) => {
             </Link>
             <div className="flex-1 min-w-0">
               <Link to={`/profile/${post.user.id}`} className="block">
-                <p className="font-semibold text-gray-900 hover:text-blue-600 transition-colors">
+                <p className="font-semibold text-gray-900 hover:text-blue-600 transition-colors text-base sm:text-base truncate">
                   {post.user?.name}
                 </p>
               </Link>
-              <div className="flex items-center space-x-2 text-sm text-gray-500">
-                <span>{formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}</span>
+              <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-500">
+                <span className="truncate">{formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}</span>
                 {post.metadata?.location && (
                   <>
-                    <span>•</span>
-                    <div className="flex items-center space-x-1">
+                    <span className="hidden sm:inline">•</span>
+                    <div className="hidden sm:flex items-center space-x-1">
                       <MapPin className="h-3 w-3" />
-                      <span>{post.metadata.location}</span>
+                      <span className="truncate max-w-[100px]">{post.metadata.location}</span>
                     </div>
                   </>
                 )}
-                <span>•</span>
-                <div className="flex items-center space-x-1">
+                <span className="hidden sm:inline">•</span>
+                <div className="hidden sm:flex items-center space-x-1">
                   {post.is_public ? <Globe className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
                   <span>{post.is_public ? 'Public' : 'Friends only'}</span>
+                </div>
+              </div>
+              {/* Mobile location/privacy row */}
+              <div className="sm:hidden flex items-center space-x-2 text-xs text-gray-500 mt-1">
+                {post.metadata?.location && (
+                  <div className="flex items-center space-x-1">
+                    <MapPin className="h-3 w-3" />
+                    <span className="truncate max-w-[120px]">{post.metadata.location}</span>
+                  </div>
+                )}
+                <div className="flex items-center space-x-1">
+                  {post.is_public ? <Globe className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+                  <span>{post.is_public ? 'Public' : 'Private'}</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Post Actions Menu */}
-          <div className="relative">
+          <div className="relative flex-shrink-0">
             <button
               onClick={() => setShowActions(!showActions)}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors active:scale-95"
             >
               <MoreHorizontal className="h-5 w-5 text-gray-500" />
             </button>
@@ -303,16 +296,16 @@ const PostCard = ({ post, onUpdate }) => {
       </div>
 
       {/* Post Content */}
-      <div className="p-4">
+      <div className="p-3 sm:p-4">
         <div className="space-y-3">
           {/* Text Content */}
           {post.content && (
             <div className="text-gray-900 leading-relaxed">
-              <p className="whitespace-pre-wrap">{displayContent}</p>
+              <p className="whitespace-pre-wrap text-sm sm:text-base">{displayContent}</p>
               {shouldTruncate && (
                 <button
                   onClick={toggleContent}
-                  className="text-blue-600 hover:text-blue-700 font-medium mt-2"
+                  className="text-blue-600 hover:text-blue-700 font-medium mt-2 text-sm active:scale-95 transition-transform"
                 >
                   {showFullContent ? 'Show less' : 'Show more'}
                 </button>
@@ -607,92 +600,64 @@ const PostCard = ({ post, onUpdate }) => {
       </div>
 
       {/* Action Buttons */}
-      <div className="px-4 py-2 border-t border-gray-100">
-        <div className="flex items-center justify-between">
+      <div className="px-3 sm:px-4 py-2 border-t border-gray-100">
+        <div className="flex items-center justify-between gap-1 sm:gap-2">
           {/* Like Button */}
           <button
             onClick={handleLike}
             disabled={likeMutation.isLoading}
-            className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors flex-1 justify-center ${
+            className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-lg transition-all duration-200 flex-1 justify-center active:scale-95 ${
               isLiked
                 ? 'text-red-600 bg-red-50 hover:bg-red-100'
                 : 'text-gray-600 hover:bg-gray-100'
             }`}
           >
-            <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
-            <span className="font-medium">Like</span>
+            <Heart className={`h-4 w-4 sm:h-5 sm:w-5 ${isLiked ? 'fill-current' : ''}`} />
+            <span className="font-medium text-sm sm:text-base">Like</span>
+            {likeCount > 0 && (
+              <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                {likeCount}
+              </span>
+            )}
           </button>
 
           {/* Comment Button */}
           <button
-            onClick={() => setShowComments(!showComments)}
-            className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors flex-1 justify-center"
+            onClick={() => {
+              // This will be handled by the CommentsSection component
+              const commentSection = document.querySelector(`[data-post-id="${post.id}"] .comments-toggle`);
+              if (commentSection) {
+                commentSection.click();
+              }
+            }}
+            className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-all duration-200 flex-1 justify-center active:scale-95"
           >
-            <MessageCircle className="h-5 w-5" />
-            <span className="font-medium">Comment</span>
+            <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="font-medium text-sm sm:text-base">Comment</span>
+            {commentCount > 0 && (
+              <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                {commentCount}
+              </span>
+            )}
           </button>
 
           {/* Share Button */}
-          <button className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors flex-1 justify-center">
-            <Share2 className="h-5 w-5" />
-            <span className="font-medium">Share</span>
+          <button className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-all duration-200 flex-1 justify-center active:scale-95">
+            <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="font-medium text-sm sm:text-base">Share</span>
           </button>
         </div>
       </div>
 
       {/* Comments Section */}
-      {showComments && (
-        <div className="border-t border-gray-100 p-4 space-y-4">
-          {/* Add Comment */}
-          <form onSubmit={handleComment} className="flex space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-semibold text-sm">
-                {user?.name?.charAt(0).toUpperCase()}
-              </span>
-            </div>
-            <div className="flex-1">
-              <input
-                type="text"
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Write a comment..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={!commentText.trim() || commentMutation.isLoading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {commentMutation.isLoading ? 'Posting...' : 'Post'}
-            </button>
-          </form>
-
-          {/* Comments List */}
-          <div className="space-y-3">
-            {post.comments?.map((comment) => (
-              <div key={comment.id} className="flex space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-r from-gray-400 to-gray-500 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-white font-semibold text-sm">
-                    {comment.user?.name?.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex-1">
-                  <div className="bg-gray-50 rounded-lg px-3 py-2">
-                    <p className="font-medium text-sm text-gray-900">
-                      {comment.user?.name}
-                    </p>
-                    <p className="text-gray-800">{comment.content}</p>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <CommentsSection 
+        postId={post.id} 
+        commentCount={commentCount}
+        onCommentAdded={() => {
+          // Refresh post data when comment is added
+          queryClient.invalidateQueries({ queryKey: ['posts'] });
+        }}
+      />
 
       {/* Click outside to close dropdowns */}
       {showActions && (

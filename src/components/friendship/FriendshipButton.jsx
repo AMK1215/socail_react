@@ -8,9 +8,9 @@ const FriendshipButton = ({ targetUserId, currentUserId, initialStatus = null })
   const queryClient = useQueryClient();
   
   // Get current friendship status
-  const { data: statusData } = useQuery(
-    ['friendship-status', currentUserId, targetUserId],
-    async () => {
+  const { data: statusData } = useQuery({
+    queryKey: ['friendship-status', currentUserId, targetUserId],
+    queryFn: async () => {
       try {
         const response = await api.get(`/friendships/status/${targetUserId}`);
         return response.data;
@@ -21,104 +21,92 @@ const FriendshipButton = ({ targetUserId, currentUserId, initialStatus = null })
         throw error;
       }
     },
-    {
-      retry: false,
-      refetchOnWindowFocus: false,
-    }
-  );
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
 
   const currentStatus = statusData?.data || { status: 'none' };
   
   // Send friend request
-  const sendRequestMutation = useMutation(
-    async () => {
+  const sendRequestMutation = useMutation({
+    mutationFn: async () => {
       const response = await api.post(`/friends/${targetUserId}`);
       return response.data;
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(['profile', targetUserId]);
-        queryClient.invalidateQueries(['friendships']);
-        toast.success('Friend request sent!');
-      },
-      onError: (error) => {
-        console.error('Friend request error:', error.response?.data);
-        toast.error(error.response?.data?.message || 'Failed to send friend request');
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] });
+      queryClient.invalidateQueries({ queryKey: ['friendships'] });
+      toast.success('Friend request sent!');
+    },
+    onError: (error) => {
+      console.error('Friend request error:', error.response?.data);
+      toast.error(error.response?.data?.message || 'Failed to send friend request');
+    },
+  });
 
   // Accept friend request
-  const acceptRequestMutation = useMutation(
-    async (friendshipId) => {
+  const acceptRequestMutation = useMutation({
+    mutationFn: async (friendshipId) => {
       const response = await api.put(`/friendships/${friendshipId}`, { action: 'accept' });
       return response.data;
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(['profile', targetUserId]);
-        queryClient.invalidateQueries(['friendships']);
-        toast.success('Friend request accepted!');
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to accept friend request');
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] });
+      queryClient.invalidateQueries({ queryKey: ['friendships'] });
+      toast.success('Friend request accepted!');
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to accept friend request');
+    },
+  });
 
   // Reject friend request
-  const rejectRequestMutation = useMutation(
-    async (friendshipId) => {
+  const rejectRequestMutation = useMutation({
+    mutationFn: async (friendshipId) => {
       const response = await api.put(`/friendships/${friendshipId}`, { action: 'reject' });
       return response.data;
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(['profile', targetUserId]);
-        queryClient.invalidateQueries(['friendships']);
-        toast.success('Friend request rejected');
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to reject friend request');
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] });
+      queryClient.invalidateQueries({ queryKey: ['friendships'] });
+      toast.success('Friend request rejected');
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to reject friend request');
+    },
+  });
 
   // Cancel friend request
-  const cancelRequestMutation = useMutation(
-    async (friendshipId) => {
+  const cancelRequestMutation = useMutation({
+    mutationFn: async (friendshipId) => {
       const response = await api.delete(`/friendships/${friendshipId}`);
       return response.data;
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(['profile', targetUserId]);
-        queryClient.invalidateQueries(['friendships']);
-        toast.success('Friend request cancelled');
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to cancel friend request');
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] });
+      queryClient.invalidateQueries({ queryKey: ['friendships'] });
+      toast.success('Friend request cancelled');
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to cancel friend request');
+    },
+  });
 
   // Remove friend
-  const removeFriendMutation = useMutation(
-    async (friendshipId) => {
+  const removeFriendMutation = useMutation({
+    mutationFn: async (friendshipId) => {
       const response = await api.delete(`/friendships/${friendshipId}`);
       return response.data;
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(['profile', targetUserId]);
-        queryClient.invalidateQueries(['friendships']);
-        toast.success('Friend removed');
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to remove friend');
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] });
+      queryClient.invalidateQueries({ queryKey: ['friendships'] });
+      toast.success('Friend removed');
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to remove friend');
+    },
+  });
 
   // Don't show button for own profile
   if (currentUserId === targetUserId) {

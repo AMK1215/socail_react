@@ -49,8 +49,8 @@ const Profile = () => {
     queryKey: ['profile', profileUserId],
     queryFn: async () => {
       if (isOwnProfile) {
-        const response = await api.get('/me');
-        return response.data.data.user;
+        const response = await api.get('/profiles');
+        return response.data.data;
       } else {
         const response = await api.get(`/profiles/${profileUserId}`);
         return response.data.data;
@@ -81,7 +81,9 @@ const Profile = () => {
       });
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Update the cache with the new profile data
+      queryClient.setQueryData(['profile', profileUserId], data.data);
       queryClient.invalidateQueries({ queryKey: ['profile', profileUserId] });
       toast.success('Profile updated successfully!');
       setIsEditing(false);
@@ -181,9 +183,9 @@ const Profile = () => {
   const posts = postsData?.data || [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       {/* Cover Photo */}
-      <div className="relative h-48 sm:h-64 lg:h-80 bg-gradient-to-r from-blue-600 to-purple-600">
+      <div className="relative h-40 sm:h-48 lg:h-64 bg-gradient-to-r from-blue-600 to-purple-600">
         {profile?.cover_photo_url && (
           <img
             src={profile.cover_photo_url}
@@ -196,21 +198,21 @@ const Profile = () => {
         {isOwnProfile && (
           <button
             onClick={() => setShowCoverEdit(true)}
-            className="absolute top-4 right-4 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all"
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all active:scale-95"
           >
-            <Camera className="h-5 w-5" />
+            <Camera className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
         )}
       </div>
 
       {/* Profile Info Section */}
-      <div className="relative px-4 sm:px-6 lg:px-8 -mt-20">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
+      <div className="relative px-3 sm:px-4 lg:px-6 -mt-16 sm:-mt-20">
+        <div className="bg-white/80 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-white/20 p-4 sm:p-6">
           {/* Avatar and Basic Info */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
+          <div className="flex flex-col sm:flex-row items-center sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
             {/* Avatar */}
             <div className="relative">
-              <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-xl">
                 {profile?.avatar_url ? (
                   <img
                     src={profile.avatar_url}
@@ -218,7 +220,7 @@ const Profile = () => {
                     className="w-full h-full rounded-full object-cover"
                   />
                 ) : (
-                  <span className="text-white font-bold text-3xl sm:text-4xl">
+                  <span className="text-white font-bold text-2xl sm:text-3xl lg:text-4xl">
                     {user.name?.charAt(0).toUpperCase()}
                   </span>
                 )}
@@ -228,35 +230,35 @@ const Profile = () => {
               {isOwnProfile && (
                 <button
                   onClick={() => setShowAvatarEdit(true)}
-                  className="absolute bottom-0 right-0 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all shadow-lg"
+                  className="absolute bottom-0 right-0 p-1.5 sm:p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all shadow-lg active:scale-95"
                 >
-                  <Camera className="h-4 w-4" />
+                  <Camera className="h-3 w-3 sm:h-4 sm:w-4" />
                 </button>
               )}
             </div>
 
             {/* Basic Info */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 text-center sm:text-left">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-                <div>
-                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{user.name}</h1>
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 truncate">{user.name}</h1>
                   {profile?.username && (
-                    <p className="text-lg text-gray-600">@{profile.username}</p>
+                    <p className="text-base sm:text-lg text-gray-600 truncate">@{profile.username}</p>
                   )}
                   {profile?.bio && (
-                    <p className="text-gray-700 mt-2 max-w-2xl">{profile.bio}</p>
+                    <p className="text-gray-700 mt-2 text-sm sm:text-base leading-relaxed">{profile.bio}</p>
                   )}
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 flex-shrink-0">
                   {isOwnProfile ? (
                     <button
                       onClick={() => setShowEditProfile(true)}
-                      className="flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      className="flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 active:scale-95"
                     >
                       <Edit3 className="h-4 w-4" />
-                      <span>Edit Profile</span>
+                      <span className="text-sm sm:text-base">Edit Profile</span>
                     </button>
                   ) : (
                     <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-3">
