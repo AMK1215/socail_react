@@ -200,6 +200,7 @@ const PeopleYouMayKnow = () => {
     <div className="bg-white/70 backdrop-blur-lg rounded-xl sm:rounded-2xl shadow-lg border border-white/30 p-4 sm:p-6">
       
       {/* Debug Section - Remove in production */}
+      {/* 
       <div className="mb-4 p-2 bg-yellow-100 rounded border">
         <p className="text-xs text-yellow-800">Debug Info:</p>
         <p className="text-xs">Suggestions: {suggestions.length}</p>
@@ -217,6 +218,7 @@ const PeopleYouMayKnow = () => {
           Test First User
         </button>
       </div>
+      */}
 
       {/* Header */}
       <div className="flex items-center justify-between mb-4 sm:mb-6">
