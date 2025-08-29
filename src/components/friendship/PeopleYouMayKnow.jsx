@@ -41,10 +41,22 @@ const PeopleYouMayKnow = () => {
   // Send friend request mutation
   const sendRequestMutation = useMutation({
     mutationFn: async (userId) => {
-      console.log('Sending friend request to user:', userId);
-      const response = await api.post(`/friends/${userId}`);
-      console.log('Friend request response:', response.data);
-      return response.data;
+      console.log('=== MUTATION START ===');
+      console.log('Mutation function called with userId:', userId);
+      console.log('Making API request to:', `/friends/${userId}`);
+      
+      try {
+        const response = await api.post(`/friends/${userId}`);
+        console.log('API Response received:', response);
+        console.log('Response data:', response.data);
+        console.log('=== MUTATION SUCCESS ===');
+        return response.data;
+      } catch (error) {
+        console.log('=== MUTATION ERROR ===');
+        console.error('API Error:', error);
+        console.error('Error response:', error.response);
+        throw error;
+      }
     },
     onSuccess: (data, userId) => {
       console.log('Friend request sent successfully:', data);
@@ -94,7 +106,12 @@ const PeopleYouMayKnow = () => {
   });
 
   const handleSendRequest = (userId) => {
+    console.log('=== handleSendRequest START ===');
     console.log('handleSendRequest called with userId:', userId);
+    console.log('sendRequestMutation.isLoading:', sendRequestMutation.isLoading);
+    console.log('sentRequestUsers:', Array.from(sentRequestUsers));
+    console.log('Current user being processed:', userId);
+    
     if (!userId) {
       console.error('No userId provided to handleSendRequest');
       toast.error('Invalid user ID');
@@ -106,7 +123,14 @@ const PeopleYouMayKnow = () => {
       return;
     }
     
+    if (sentRequestUsers.has(userId)) {
+      console.log('Request already sent to this user');
+      return;
+    }
+    
+    console.log('Calling sendRequestMutation.mutate with userId:', userId);
     sendRequestMutation.mutate(userId);
+    console.log('=== handleSendRequest END ===');
   };
 
   const handleDismiss = (userId) => {
@@ -174,6 +198,26 @@ const PeopleYouMayKnow = () => {
 
   return (
     <div className="bg-white/70 backdrop-blur-lg rounded-xl sm:rounded-2xl shadow-lg border border-white/30 p-4 sm:p-6">
+      
+      {/* Debug Section - Remove in production */}
+      <div className="mb-4 p-2 bg-yellow-100 rounded border">
+        <p className="text-xs text-yellow-800">Debug Info:</p>
+        <p className="text-xs">Suggestions: {suggestions.length}</p>
+        <p className="text-xs">Sent Requests: {Array.from(sentRequestUsers).length}</p>
+        <p className="text-xs">Loading: {sendRequestMutation.isLoading ? 'Yes' : 'No'}</p>
+        <button 
+          onClick={() => {
+            console.log('Test button clicked');
+            if (suggestions.length > 0) {
+              handleSendRequest(suggestions[0].id);
+            }
+          }}
+          className="mt-1 px-2 py-1 bg-yellow-500 text-white text-xs rounded"
+        >
+          Test First User
+        </button>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between mb-4 sm:mb-6">
         <div className="flex items-center space-x-3 flex-1 min-w-0">
@@ -250,15 +294,21 @@ const PeopleYouMayKnow = () => {
 
                   {/* Add Friend Button */}
                   <button
-                    onClick={() => handleSendRequest(user.id)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('Button clicked for user:', user.id, user.name);
+                      handleSendRequest(user.id);
+                    }}
                     disabled={sendRequestMutation.isLoading || sentRequestUsers.has(user.id) || sentRequestUserIds.has(user.id)}
-                    className={`w-full font-medium py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl transition-all duration-300 disabled:cursor-not-allowed flex items-center justify-center space-x-1 sm:space-x-2 shadow-lg hover:shadow-xl active:scale-95 ${
+                    className={`w-full font-medium py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl transition-all duration-300 disabled:cursor-not-allowed flex items-center justify-center space-x-1 sm:space-x-2 shadow-lg hover:shadow-xl active:scale-95 relative z-10 ${
                       sentRequestUsers.has(user.id) || sentRequestUserIds.has(user.id)
                         ? 'bg-gradient-to-r from-green-500 to-green-600 text-white cursor-default transform-none'
                         : sendRequestMutation.isLoading
                         ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white opacity-90'
                         : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'
                     }`}
+                    type="button"
                   >
                     {sentRequestUsers.has(user.id) || sentRequestUserIds.has(user.id) ? (
                       <>
@@ -282,7 +332,7 @@ const PeopleYouMayKnow = () => {
                 </div>
 
                 {/* Hover Effect Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl sm:rounded-2xl"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl sm:rounded-2xl pointer-events-none"></div>
               </div>
             </div>
           ))}
