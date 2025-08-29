@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 
 const PeopleYouMayKnow = () => {
   const [dismissedUsers, setDismissedUsers] = useState(new Set());
+  const [sentRequestUsers, setSentRequestUsers] = useState(new Set());
   const queryClient = useQueryClient();
 
   // Fetch suggested friends
@@ -20,11 +21,18 @@ const PeopleYouMayKnow = () => {
   });
 
   // Fetch current user's sent friend requests to filter them out
-  const { data: sentRequestsData, isLoading: sentRequestsLoading } = useQuery({
+  const { data: sentRequestsData, isLoading: sentRequestsLoading, error: sentRequestsError } = useQuery({
     queryKey: ['sentFriendRequests'],
     queryFn: async () => {
-      const response = await api.get('/friends');
-      return response.data;
+      try {
+        const response = await api.get('/friends');
+        console.log('Sent requests data:', response.data);
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching sent requests:', error);
+        // Return empty data structure if error
+        return { data: { sent_requests: [] } };
+      }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
@@ -33,24 +41,37 @@ const PeopleYouMayKnow = () => {
   // Send friend request mutation
   const sendRequestMutation = useMutation({
     mutationFn: async (userId) => {
+      console.log('Sending friend request to user:', userId);
       const response = await api.post(`/friends/${userId}`);
+      console.log('Friend request response:', response.data);
       return response.data;
     },
     onSuccess: (data, userId) => {
+      console.log('Friend request sent successfully:', data);
       toast.success('Friend request sent!', {
         style: {
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           color: 'white',
         },
       });
-      // Remove the user from suggestions after sending request
-      setDismissedUsers(prev => new Set([...prev, userId]));
+      // Mark user as having a sent request
+      setSentRequestUsers(prev => new Set([...prev, userId]));
+      // Don't remove from suggestions immediately, just change button state
       // Refresh both queries to get updated data
       queryClient.invalidateQueries({ queryKey: ['suggestedFriends'] });
       queryClient.invalidateQueries({ queryKey: ['sentFriendRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
     },
     onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to send friend request');
+      console.error('Friend request error:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMessage = error.response?.data?.message || 'Failed to send friend request';
+      toast.error(errorMessage, {
+        style: {
+          background: '#ef4444',
+          color: 'white',
+        },
+      });
     },
   });
 
@@ -73,6 +94,18 @@ const PeopleYouMayKnow = () => {
   });
 
   const handleSendRequest = (userId) => {
+    console.log('handleSendRequest called with userId:', userId);
+    if (!userId) {
+      console.error('No userId provided to handleSendRequest');
+      toast.error('Invalid user ID');
+      return;
+    }
+    
+    if (sendRequestMutation.isLoading) {
+      console.log('Friend request already in progress');
+      return;
+    }
+    
     sendRequestMutation.mutate(userId);
   };
 
@@ -123,11 +156,17 @@ const PeopleYouMayKnow = () => {
       sentRequestUserIds.add(request.friend_id);
     });
   }
+  
+  console.log('All suggested users:', suggestedData.data);
+  console.log('Dismissed users:', Array.from(dismissedUsers));
+  console.log('Sent request user IDs:', Array.from(sentRequestUserIds));
 
-  // Filter out dismissed users and users who already have friend requests
+  // Filter out only dismissed users, keep users with sent requests to show different button state
   const suggestions = suggestedData.data.filter(user => 
-    !dismissedUsers.has(user.id) && !sentRequestUserIds.has(user.id)
+    !dismissedUsers.has(user.id)
   );
+  
+  console.log('Filtered suggestions:', suggestions);
 
   if (suggestions.length === 0) {
     return null; // Don't show anything if all users are dismissed or have requests
@@ -212,10 +251,23 @@ const PeopleYouMayKnow = () => {
                   {/* Add Friend Button */}
                   <button
                     onClick={() => handleSendRequest(user.id)}
-                    disabled={sendRequestMutation.isLoading}
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-1 sm:space-x-2 shadow-lg hover:shadow-xl active:scale-95"
+                    disabled={sendRequestMutation.isLoading || sentRequestUsers.has(user.id) || sentRequestUserIds.has(user.id)}
+                    className={`w-full font-medium py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl transition-all duration-300 disabled:cursor-not-allowed flex items-center justify-center space-x-1 sm:space-x-2 shadow-lg hover:shadow-xl active:scale-95 ${
+                      sentRequestUsers.has(user.id) || sentRequestUserIds.has(user.id)
+                        ? 'bg-gradient-to-r from-green-500 to-green-600 text-white cursor-default transform-none'
+                        : sendRequestMutation.isLoading
+                        ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white opacity-90'
+                        : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'
+                    }`}
                   >
-                    {sendRequestMutation.isLoading ? (
+                    {sentRequestUsers.has(user.id) || sentRequestUserIds.has(user.id) ? (
+                      <>
+                        <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-xs sm:text-sm">Request Sent</span>
+                      </>
+                    ) : sendRequestMutation.isLoading ? (
                       <>
                         <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                         <span className="text-xs sm:text-sm">Sending...</span>
