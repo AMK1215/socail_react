@@ -241,59 +241,56 @@ const PeopleYouMayKnow = () => {
         </button>
       </div>
 
-      {/* Horizontal Scrollable Cards */}
-      <div className="relative">
-        <div className="flex space-x-3 sm:space-x-4 overflow-x-auto pb-2 scrollbar-hide">
-          {suggestions.map((user) => (
-            <div key={user.id} className="flex-shrink-0 w-32 sm:w-40">
+      {/* Facebook-style Grid Layout */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {suggestions.slice(0, 8).map((user) => (
+            <div key={user.id} className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
               {/* Profile Card */}
-              <div className="relative bg-gradient-to-br from-white to-gray-50 rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 overflow-hidden transition-transform duration-200 active:scale-98">
-                {/* Profile Picture */}
-                <div className="relative">
-                  <div className="aspect-square w-full relative overflow-hidden">
-                    {user.profile?.avatar_url ? (
-                      <img
-                        src={user.profile.avatar_url}
-                        alt={user.name}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 flex items-center justify-center">
-                        <span className="text-white font-bold text-2xl sm:text-3xl">
-                          {user.name?.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                    )}
-                    
-                    {/* Gradient Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"></div>
-                    
-                    {/* Dismiss Button */}
-                    <button
-                      onClick={() => handleDismiss(user.id)}
-                      className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-6 h-6 sm:w-7 sm:h-7 bg-black/50 active:bg-black/70 text-white rounded-full flex items-center justify-center transition-colors duration-200 backdrop-blur-sm touch-manipulation"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-
-                    {/* Mutual Friends Badge (if you have data for this) */}
-                    <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-white/90 backdrop-blur-sm rounded-full px-1.5 py-0.5 sm:px-2 sm:py-1">
-                      <span className="text-[10px] sm:text-xs font-medium text-gray-700">
-                        {Math.floor(Math.random() * 5) + 1} mutual
-                      </span>
-                    </div>
+              {/* Profile Picture */}
+              <div className="relative aspect-square">
+                {user.profile?.avatar_url ? (
+                  <img
+                    src={user.profile.avatar_url}
+                    alt={user.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                    <span className="text-white font-bold text-2xl">
+                      {user.name?.charAt(0).toUpperCase()}
+                    </span>
                   </div>
+                )}
+                
+                {/* Dismiss Button */}
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDismiss(user.id);
+                  }}
+                  className="absolute top-2 right-2 w-8 h-8 bg-gray-800/70 text-white rounded-full flex items-center justify-center transition-colors duration-200 active:bg-gray-800/90 touch-manipulation"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+
+                {/* Mutual Friends Badge */}
+                <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                  {Math.floor(Math.random() * 5) + 1} mutual friends
                 </div>
+              </div>
 
-                {/* User Info */}
-                <div className="p-3 sm:p-4">
-                  <h4 className="font-semibold text-gray-900 text-center mb-1 line-clamp-2 text-sm sm:text-base">
-                    {user.name}
-                  </h4>
-                  <p className="text-[10px] sm:text-xs text-gray-600 text-center mb-3 sm:mb-4 truncate">
-                    @{user.profile?.username || user.email?.split('@')[0]}
-                  </p>
+              {/* User Info */}
+              <div className="p-3">
+                <h4 className="font-semibold text-gray-900 text-sm mb-1 truncate">
+                  {user.name}
+                </h4>
+                <p className="text-xs text-gray-500 mb-3 truncate">
+                  @{user.profile?.username || user.email?.split('@')[0]}
+                </p>
 
+                {/* Action Buttons */}
+                <div className="space-y-2">
                   {/* Add Friend Button */}
                   <button
                     onClick={(e) => {
@@ -303,60 +300,63 @@ const PeopleYouMayKnow = () => {
                       handleSendRequest(user.id);
                     }}
                     disabled={sendRequestMutation.isLoading || sentRequestUsers.has(user.id) || sentRequestUserIds.has(user.id)}
-                    className={`w-full font-medium py-3 px-4 rounded-lg transition-colors duration-200 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-md relative z-10 touch-manipulation ${
+                    className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors duration-200 disabled:cursor-not-allowed flex items-center justify-center space-x-1 touch-manipulation ${
                       sentRequestUsers.has(user.id) || sentRequestUserIds.has(user.id)
-                        ? 'bg-green-500 text-white cursor-default'
+                        ? 'bg-gray-100 text-gray-600 cursor-default'
                         : sendRequestMutation.isLoading
-                        ? 'bg-orange-500 text-white opacity-90'
+                        ? 'bg-blue-500 text-white opacity-75'
                         : 'bg-blue-600 text-white active:bg-blue-700'
                     }`}
                     type="button"
                   >
                     {sentRequestUsers.has(user.id) || sentRequestUserIds.has(user.id) ? (
                       <>
-                        <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
-                        <span className="text-xs sm:text-sm">Request Sent</span>
+                        <span>Request Sent</span>
                       </>
                     ) : sendRequestMutation.isLoading ? (
                       <>
-                        <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span className="text-xs sm:text-sm">Sending...</span>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Sending...</span>
                       </>
                     ) : (
                       <>
-                        <UserPlus className="w-3 h-3 sm:w-4 sm:h-4" />
-                        <span className="text-xs sm:text-sm">Add Friend</span>
+                        <UserPlus className="w-4 h-4" />
+                        <span>Add Friend</span>
                       </>
                     )}
                   </button>
+
+                  {/* Remove Button */}
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleDismiss(user.id);
+                    }}
+                    className="w-full py-2 px-3 bg-gray-100 text-gray-700 rounded-md text-sm font-medium transition-colors duration-200 active:bg-gray-200 touch-manipulation"
+                  >
+                    Remove
+                  </button>
                 </div>
-
-
               </div>
             </div>
           ))}
+      </div>
+
+      {/* Show More Button */}
+      {suggestions.length > 8 && (
+        <div className="mt-6 text-center">
+          <button
+            onClick={handleSeeAll}
+            className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium transition-colors duration-200 active:bg-gray-200 touch-manipulation"
+          >
+            See More Suggestions ({suggestions.length - 8} more)
+          </button>
         </div>
-
-        {/* Scroll Indicator */}
-        {suggestions.length > 3 && (
-          <div className="absolute -right-4 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-white/80 backdrop-blur-lg border border-white/20 rounded-full flex items-center justify-center shadow-lg">
-            <ChevronRight className="w-5 h-5 text-gray-600" />
-          </div>
-        )}
-      </div>
-
-      {/* Bottom Action */}
-      <div className="mt-6 text-center">
-        <button
-          onClick={handleSeeAll}
-          className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-700 rounded-xl transition-all duration-200 font-medium shadow-sm hover:shadow-lg"
-        >
-          <Heart className="w-4 h-4" />
-          <span>Discover more people</span>
-        </button>
-      </div>
+      )}
     </div>
   );
 };
