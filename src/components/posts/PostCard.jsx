@@ -201,52 +201,49 @@ const PostCard = ({ post, onUpdate }) => {
   ];
 
   return (
-    <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 overflow-hidden" data-post-id={post.id}>
+    <div className="bg-white rounded-lg shadow-md border-0 overflow-hidden mb-4" data-post-id={post.id}>
       {/* Post Header */}
-      <div className="p-3 sm:p-4 border-b border-gray-100">
+      <div className="p-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-3 flex-1 min-w-0">
             <Link to={`/profile/${post.user.id}`} className="flex-shrink-0">
-              <div className="w-11 h-11 sm:w-10 sm:h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                <span className="text-white font-semibold text-lg">
+              {post.user?.profile?.avatar_url ? (
+                <img
+                  src={post.user.profile.avatar_url}
+                  alt={post.user.name}
+                  className="w-10 h-10 rounded-full object-cover border-2 border-gray-100"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                  <span className="text-white font-semibold text-sm">
                   {post.user?.name?.charAt(0).toUpperCase()}
                 </span>
               </div>
+              )}
             </Link>
             <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2">
               <Link to={`/profile/${post.user.id}`} className="block">
-                <p className="font-semibold text-gray-900 hover:text-blue-600 transition-colors text-base sm:text-base truncate">
+                  <p className="font-semibold text-gray-900 hover:text-blue-600 transition-colors text-sm truncate">
                   {post.user?.name}
                 </p>
               </Link>
-              <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-500">
-                <span className="truncate">{formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}</span>
                 {post.metadata?.location && (
                   <>
-                    <span className="hidden sm:inline">•</span>
-                    <div className="hidden sm:flex items-center space-x-1">
+                    <span className="text-gray-400">•</span>
+                    <div className="flex items-center space-x-1 text-gray-500">
                       <MapPin className="h-3 w-3" />
-                      <span className="truncate max-w-[100px]">{post.metadata.location}</span>
+                      <span className="text-xs truncate max-w-[80px]">{post.metadata.location}</span>
                     </div>
                   </>
                 )}
-                <span className="hidden sm:inline">•</span>
-                <div className="hidden sm:flex items-center space-x-1">
-                  {post.is_public ? <Globe className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
-                  <span>{post.is_public ? 'Public' : 'Friends only'}</span>
-                </div>
               </div>
-              {/* Mobile location/privacy row */}
-              <div className="sm:hidden flex items-center space-x-2 text-xs text-gray-500 mt-1">
-                {post.metadata?.location && (
-                  <div className="flex items-center space-x-1">
-                    <MapPin className="h-3 w-3" />
-                    <span className="truncate max-w-[120px]">{post.metadata.location}</span>
-                  </div>
-                )}
+              <div className="flex items-center space-x-2 text-xs text-gray-500 mt-0.5">
+                <span>{formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}</span>
+                <span className="text-gray-400">•</span>
                 <div className="flex items-center space-x-1">
                   {post.is_public ? <Globe className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
-                  <span>{post.is_public ? 'Public' : 'Private'}</span>
+                  <span>{post.is_public ? 'Public' : 'Friends only'}</span>
                 </div>
               </div>
             </div>
@@ -256,25 +253,25 @@ const PostCard = ({ post, onUpdate }) => {
           <div className="relative flex-shrink-0">
             <button
               onClick={() => setShowActions(!showActions)}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors active:scale-95"
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
             >
-              <MoreHorizontal className="h-5 w-5 text-gray-500" />
+              <MoreHorizontal className="h-4 w-4 text-gray-500" />
             </button>
 
             {showActions && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-10">
                 {isOwnPost ? (
                   <>
                     <button
                       onClick={() => {/* TODO: Edit post */}}
-                      className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
+                      className="flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left transition-colors"
                     >
-                      <Edit3 className="h-4 w-4" />
+                      <Edit3 className="h-4 w-4 text-gray-400" />
                       <span>Edit Post</span>
                     </button>
                     <button
                       onClick={handleDelete}
-                      className="flex items-center space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
+                      className="flex items-center space-x-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left transition-colors"
                     >
                       <Trash2 className="h-4 w-4" />
                       <span>Delete Post</span>
@@ -283,9 +280,9 @@ const PostCard = ({ post, onUpdate }) => {
                 ) : (
                   <button
                     onClick={() => {/* TODO: Report post */}}
-                    className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
+                    className="flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left transition-colors"
                   >
-                    <Flag className="h-4 w-4" />
+                    <Flag className="h-4 w-4 text-gray-400" />
                     <span>Report Post</span>
                   </button>
                 )}
@@ -296,30 +293,28 @@ const PostCard = ({ post, onUpdate }) => {
       </div>
 
       {/* Post Content */}
-      <div className="p-3 sm:p-4">
-        <div className="space-y-3">
-          {/* Text Content */}
           {post.content && (
+        <div className="px-4 pb-3">
             <div className="text-gray-900 leading-relaxed">
-              <p className="whitespace-pre-wrap text-sm sm:text-base">{displayContent}</p>
+            <p className="whitespace-pre-wrap text-sm">{displayContent}</p>
               {shouldTruncate && (
                 <button
                   onClick={toggleContent}
-                  className="text-blue-600 hover:text-blue-700 font-medium mt-2 text-sm active:scale-95 transition-transform"
+                className="text-blue-600 hover:text-blue-700 font-medium mt-2 text-sm transition-colors"
                 >
                   {showFullContent ? 'Show less' : 'Show more'}
                 </button>
               )}
+          </div>
             </div>
           )}
 
           {/* Media Content - Facebook Style */}
           {post.media && post.media.length > 0 && (
             <div className="relative">
-              
                                        {/* Video Content */}
                          {post.type === 'video' ? (
-                           <div className="relative bg-gray-100 rounded-lg overflow-hidden">
+            <div className="relative bg-gray-100 overflow-hidden">
                              {/* Debug info for video - Commented out since video is working on desktop and mobile */}
                              {/* {process.env.NODE_ENV === 'development' && (
                                <div className="mb-2 p-2 bg-yellow-100 border border-yellow-300 rounded text-xs">
@@ -389,7 +384,7 @@ const PostCard = ({ post, onUpdate }) => {
                                x5-playsinline="true"
                                x5-video-player-type="h5"
                                x5-video-player-fullscreen="true"
-                               className="w-full h-auto max-h-[500px] object-cover rounded-lg cursor-pointer"
+                               className="w-full h-auto max-h-[500px] object-cover cursor-pointer"
                                style={{ minHeight: '200px' }}
                                onClick={() => {
                                  // Video click logging - Commented out since video is working on desktop and mobile
@@ -484,12 +479,12 @@ const PostCard = ({ post, onUpdate }) => {
                 </div>
               ) : (
                 /* Image Content - Facebook Style */
-                <div className="relative cursor-pointer group bg-gray-100 rounded-lg" onClick={() => handleImageClick(0)}>
+                <div className="relative cursor-pointer group bg-gray-100" onClick={() => handleImageClick(0)}>
                   {/* Always show the image - no more black screen! */}
                   <img
                     src={post.media[0]}
                     alt="Post image"
-                    className="w-full h-auto max-h-[500px] object-cover rounded-lg relative z-20"
+                    className="w-full h-auto max-h-[600px] object-cover relative z-20"
                     style={{ minHeight: '200px' }}
                     onLoad={() => {
                       setImageLoading(false);
@@ -561,64 +556,56 @@ const PostCard = ({ post, onUpdate }) => {
               )}
             </div>
           )}
-
-          {/* Post Type Badge */}
-          {post.type !== 'text' && (
-            <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-              {post.type === 'image' && '🖼️ Photo'}
-              {post.type === 'video' && '🎥 Video'}
-              {post.type === 'link' && '🔗 Link'}
-            </div>
-          )}
         </div>
-      </div>
+      )}
 
       {/* Post Stats */}
-      <div className="px-4 py-2 border-t border-gray-100 bg-gray-50">
+      {(likeCount > 0 || commentCount > 0) && (
+        <div className="px-4 py-3">
         <div className="flex items-center justify-between text-sm text-gray-600">
-          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-1">
             {likeCount > 0 && (
-              <span className="flex items-center space-x-1">
+                <div className="flex items-center space-x-1">
                 <div className="flex -space-x-1">
-                  {reactionTypes.slice(0, 3).map((reaction, index) => (
-                    <div
-                      key={index}
-                      className="w-5 h-5 bg-white rounded-full border-2 border-gray-50 flex items-center justify-center text-xs"
-                    >
-                      {reaction.icon}
+                    <div className="w-5 h-5 bg-blue-500 rounded-full border-2 border-white flex items-center justify-center">
+                      <span className="text-white text-xs">👍</span>
                     </div>
-                  ))}
+                    <div className="w-5 h-5 bg-red-500 rounded-full border-2 border-white flex items-center justify-center">
+                      <span className="text-white text-xs">❤️</span>
+                    </div>
+                  </div>
+                  <button className="text-gray-600 hover:underline">
+                    {likeCount} {likeCount === 1 ? 'like' : 'likes'}
+                  </button>
                 </div>
-                <span>{likeCount}</span>
-              </span>
             )}
+            </div>
+            <div className="flex items-center space-x-4">
             {commentCount > 0 && (
-              <span>{commentCount} comment{commentCount !== 1 ? 's' : ''}</span>
+                <button className="text-gray-600 hover:underline">
+                  {commentCount} comment{commentCount !== 1 ? 's' : ''}
+                </button>
             )}
           </div>
         </div>
       </div>
+      )}
 
       {/* Action Buttons */}
-      <div className="px-3 sm:px-4 py-2 border-t border-gray-100">
-        <div className="flex items-center justify-between gap-1 sm:gap-2">
+      <div className="border-t border-gray-200 px-2 py-1">
+        <div className="flex">
           {/* Like Button */}
           <button
             onClick={handleLike}
             disabled={likeMutation.isLoading}
-            className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-lg transition-all duration-200 flex-1 justify-center active:scale-95 ${
+            className={`flex items-center justify-center space-x-2 px-4 py-2 rounded-md transition-colors flex-1 ${
               isLiked
-                ? 'text-red-600 bg-red-50 hover:bg-red-100'
+                ? 'text-blue-600 bg-blue-50'
                 : 'text-gray-600 hover:bg-gray-100'
             }`}
           >
-            <Heart className={`h-4 w-4 sm:h-5 sm:w-5 ${isLiked ? 'fill-current' : ''}`} />
-            <span className="font-medium text-sm sm:text-base">Like</span>
-            {likeCount > 0 && (
-              <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
-                {likeCount}
-              </span>
-            )}
+            <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
+            <span className="font-medium text-sm">Like</span>
           </button>
 
           {/* Comment Button */}
@@ -630,21 +617,16 @@ const PostCard = ({ post, onUpdate }) => {
                 commentSection.click();
               }
             }}
-            className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-all duration-200 flex-1 justify-center active:scale-95"
+            className="flex items-center justify-center space-x-2 px-4 py-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors flex-1"
           >
-            <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
-            <span className="font-medium text-sm sm:text-base">Comment</span>
-            {commentCount > 0 && (
-              <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
-                {commentCount}
-              </span>
-            )}
+            <MessageCircle className="h-5 w-5" />
+            <span className="font-medium text-sm">Comment</span>
           </button>
 
           {/* Share Button */}
-          <button className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-all duration-200 flex-1 justify-center active:scale-95">
-            <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />
-            <span className="font-medium text-sm sm:text-base">Share</span>
+          <button className="flex items-center justify-center space-x-2 px-4 py-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors flex-1">
+            <Share2 className="h-5 w-5" />
+            <span className="font-medium text-sm">Share</span>
           </button>
         </div>
       </div>
