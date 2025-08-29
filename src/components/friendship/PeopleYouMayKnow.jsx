@@ -231,7 +231,7 @@ const PeopleYouMayKnow = () => {
         </div>
         <button 
           onClick={handleSeeAll}
-          className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors active:scale-95 flex-shrink-0"
+          className="flex items-center space-x-1 text-blue-600 font-medium text-sm transition-colors active:text-blue-800 flex-shrink-0 touch-manipulation"
         >
           <span className="hidden sm:inline">See all</span>
           <span className="sm:hidden text-xs">All</span>
@@ -243,9 +243,9 @@ const PeopleYouMayKnow = () => {
       <div className="relative">
         <div className="flex space-x-3 sm:space-x-4 overflow-x-auto pb-2 scrollbar-hide">
           {suggestions.map((user) => (
-            <div key={user.id} className="flex-shrink-0 w-32 sm:w-40 group">
+            <div key={user.id} className="flex-shrink-0 w-32 sm:w-40">
               {/* Profile Card */}
-              <div className="relative bg-gradient-to-br from-white to-gray-50 rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300 group-hover:-translate-y-1 sm:group-hover:-translate-y-2">
+              <div className="relative bg-gradient-to-br from-white to-gray-50 rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 overflow-hidden transition-transform duration-200 active:scale-98">
                 {/* Profile Picture */}
                 <div className="relative">
                   <div className="aspect-square w-full relative overflow-hidden">
@@ -269,7 +269,7 @@ const PeopleYouMayKnow = () => {
                     {/* Dismiss Button */}
                     <button
                       onClick={() => handleDismiss(user.id)}
-                      className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-6 h-6 sm:w-7 sm:h-7 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center transition-all duration-200 backdrop-blur-sm active:scale-95"
+                      className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-6 h-6 sm:w-7 sm:h-7 bg-black/50 active:bg-black/70 text-white rounded-full flex items-center justify-center transition-colors duration-200 backdrop-blur-sm touch-manipulation"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -301,12 +301,12 @@ const PeopleYouMayKnow = () => {
                       handleSendRequest(user.id);
                     }}
                     disabled={sendRequestMutation.isLoading || sentRequestUsers.has(user.id) || sentRequestUserIds.has(user.id)}
-                    className={`w-full font-medium py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl transition-all duration-300 disabled:cursor-not-allowed flex items-center justify-center space-x-1 sm:space-x-2 shadow-lg hover:shadow-xl active:scale-95 relative z-10 ${
+                    className={`w-full font-medium py-3 px-4 rounded-lg transition-colors duration-200 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-md relative z-10 touch-manipulation ${
                       sentRequestUsers.has(user.id) || sentRequestUserIds.has(user.id)
-                        ? 'bg-gradient-to-r from-green-500 to-green-600 text-white cursor-default transform-none'
+                        ? 'bg-green-500 text-white cursor-default'
                         : sendRequestMutation.isLoading
-                        ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white opacity-90'
-                        : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'
+                        ? 'bg-orange-500 text-white opacity-90'
+                        : 'bg-blue-600 text-white active:bg-blue-700'
                     }`}
                     type="button"
                   >
@@ -331,8 +331,7 @@ const PeopleYouMayKnow = () => {
                   </button>
                 </div>
 
-                {/* Hover Effect Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl sm:rounded-2xl pointer-events-none"></div>
+
               </div>
             </div>
           ))}
