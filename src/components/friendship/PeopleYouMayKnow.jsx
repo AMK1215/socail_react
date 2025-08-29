@@ -241,10 +241,11 @@ const PeopleYouMayKnow = () => {
         </button>
       </div>
 
-      {/* Facebook-style Grid Layout */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {suggestions.slice(0, 8).map((user) => (
-            <div key={user.id} className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+      {/* Horizontal Scrollable Cards */}
+      <div className="relative">
+        <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
+          {suggestions.map((user) => (
+            <div key={user.id} className="flex-shrink-0 w-48 bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
               {/* Profile Card */}
               {/* Profile Picture */}
               <div className="relative aspect-square">
@@ -344,19 +345,25 @@ const PeopleYouMayKnow = () => {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Scroll Indicator */}
+        {suggestions.length > 2 && (
+          <div className="absolute -right-4 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-white/80 backdrop-blur-lg border border-white/20 rounded-full flex items-center justify-center shadow-lg">
+            <ChevronRight className="w-5 h-5 text-gray-600" />
+          </div>
+        )}
       </div>
 
-      {/* Show More Button */}
-      {suggestions.length > 8 && (
-        <div className="mt-6 text-center">
-          <button
-            onClick={handleSeeAll}
-            className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium transition-colors duration-200 active:bg-gray-200 touch-manipulation"
-          >
-            See More Suggestions ({suggestions.length - 8} more)
-          </button>
-        </div>
-      )}
+      {/* Bottom Action */}
+      <div className="mt-6 text-center">
+        <button
+          onClick={handleSeeAll}
+          className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium transition-colors duration-200 active:bg-gray-200 touch-manipulation"
+        >
+          See All Suggestions
+        </button>
+      </div>
     </div>
   );
 };
