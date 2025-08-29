@@ -309,11 +309,11 @@ const PostCard = ({ post, onUpdate }) => {
             </div>
           )}
 
-          {/* Media Content - Facebook Style */}
-          {post.media && post.media.length > 0 && (
-            <div className="relative">
-                                       {/* Video Content */}
-                         {post.type === 'video' ? (
+      {/* Media Content - Facebook Style */}
+      {post.media && post.media.length > 0 && (
+        <div className="relative">
+          {/* Video Content */}
+          {post.type === 'video' ? (
             <div className="relative bg-gray-100 overflow-hidden">
                              {/* Debug info for video - Commented out since video is working on desktop and mobile */}
                              {/* {process.env.NODE_ENV === 'development' && (
@@ -477,9 +477,9 @@ const PostCard = ({ post, onUpdate }) => {
                     </div>
                   )}
                 </div>
-              ) : (
-                /* Image Content - Facebook Style */
-                <div className="relative cursor-pointer group bg-gray-100" onClick={() => handleImageClick(0)}>
+          ) : (
+            /* Image Content - Facebook Style */
+            <div className="relative cursor-pointer group bg-gray-100" onClick={() => handleImageClick(0)}>
                   {/* Always show the image - no more black screen! */}
                   <img
                     src={post.media[0]}
@@ -537,23 +537,21 @@ const PostCard = ({ post, onUpdate }) => {
                         Click to view all photos
                         </div>
                       </div>
-                    )}
-                  </div>
-              )}
-              
-              {/* Navigation Dots - Only for multiple images */}
-              {post.type === 'image' && post.media.length > 1 && (
-                <div className="flex justify-center space-x-2 mt-3">
-                  {post.media.map((_, index) => (
-                    <div
-                      key={index}
-                      className={`w-2 h-2 rounded-full transition-colors ${
-                        index === 0 ? 'bg-blue-500' : 'bg-gray-300'
-                      }`}
-                    />
-                  ))}
+                  )}
                 </div>
-              )}
+          )}
+          
+          {/* Navigation Dots - Only for multiple images */}
+          {post.type === 'image' && post.media.length > 1 && (
+            <div className="flex justify-center space-x-2 mt-3">
+              {post.media.map((_, index) => (
+                <div
+                  key={index}
+                  className={`w-2 h-2 rounded-full transition-colors ${
+                    index === 0 ? 'bg-blue-500' : 'bg-gray-300'
+                  }`}
+                />
+              ))}
             </div>
           )}
         </div>
