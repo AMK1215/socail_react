@@ -36,7 +36,12 @@ const ChatManager = () => {
 
   // Close a specific chat
   const closeChat = (conversationId) => {
-    setOpenChats(prev => prev.filter(chat => chat.id !== conversationId));
+    console.log('Closing chat with ID:', conversationId);
+    setOpenChats(prev => {
+      const updated = prev.filter(chat => chat.id !== conversationId);
+      console.log('Updated open chats:', updated);
+      return updated;
+    });
   };
 
   // Close all chats

@@ -213,10 +213,17 @@ const FloatingChatBox = ({ conversation, onClose, onMaximize }) => {
             </div>
             <button
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                onClose();
+                console.log('Minimized close button clicked');
+                if (onClose) {
+                  onClose();
+                } else {
+                  console.error('onClose prop is not provided');
+                }
               }}
               className="text-gray-400 hover:text-gray-600 transition-colors p-1 active:scale-95"
+              type="button"
             >
               <X className="w-4 h-4" />
             </button>
@@ -264,8 +271,18 @@ const FloatingChatBox = ({ conversation, onClose, onMaximize }) => {
                 <Minimize2 className="w-3 h-3" />
               </button>
               <button 
-                onClick={onClose}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('Full chat close button clicked');
+                  if (onClose) {
+                    onClose();
+                  } else {
+                    console.error('onClose prop is not provided');
+                  }
+                }}
                 className="p-1 hover:bg-white/20 rounded transition-colors"
+                type="button"
               >
                 <X className="w-3 h-3" />
               </button>

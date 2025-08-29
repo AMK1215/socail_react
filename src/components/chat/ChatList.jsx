@@ -4,6 +4,7 @@ import { Search, MessageCircle, MoreVertical, Phone, Video, UserPlus } from 'luc
 import { api } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
+import broadcastingService from '../../services/broadcasting';
 
 const ChatList = ({ onSelectConversation, selectedConversationId }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,6 +29,44 @@ const ChatList = ({ onSelectConversation, selectedConversationId }) => {
   });
 
   const conversations = conversationsData?.data || [];
+
+  // Set up real-time updates for all conversations
+  useEffect(() => {
+    if (!user?.id) return;
+
+    console.log('Setting up real-time updates for conversations');
+
+    // Subscribe to user notifications for new messages
+    const userChannel = broadcastingService.subscribeToPrivateChannel(
+      `user.${user.id}`,
+      'message.new',
+      (data) => {
+        console.log('New message received in user channel:', data);
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        queryClient.invalidateQueries({ queryKey: ['conversations', searchQuery] });
+      }
+    );
+
+    // Also listen for general message events
+    conversations.forEach(conversation => {
+      broadcastingService.subscribeToPrivateChannel(
+        `conversation.${conversation.id}`,
+        'message.new',
+        (data) => {
+          console.log('New message in conversation:', conversation.id, data);
+          queryClient.invalidateQueries({ queryKey: ['conversations'] });
+          queryClient.invalidateQueries({ queryKey: ['conversations', searchQuery] });
+        }
+      );
+    });
+
+    return () => {
+      broadcastingService.unsubscribeFromChannel(`user.${user.id}`);
+      conversations.forEach(conversation => {
+        broadcastingService.unsubscribeFromChannel(`conversation.${conversation.id}`);
+      });
+    };
+  }, [user?.id, queryClient, searchQuery, conversations.length]);
 
   // Handle search input
   const handleSearch = (e) => {
@@ -59,9 +98,14 @@ const ChatList = ({ onSelectConversation, selectedConversationId }) => {
 
   // Get last message preview
   const getLastMessagePreview = (conversation) => {
-    if (!conversation.lastMessage) return 'No messages yet';
+    // Check for lastMessage or latest_message or last message from messages array
+    const lastMessage = conversation.lastMessage || 
+                       conversation.latest_message || 
+                       (conversation.messages && conversation.messages.length > 0 ? conversation.messages[0] : null);
     
-    const message = conversation.lastMessage;
+    if (!lastMessage) return 'No messages yet';
+    
+    const message = lastMessage;
     if (message.type === 'image') return '📷 Image';
     if (message.type === 'video') return '🎥 Video';
     if (message.type === 'audio') return '🎵 Audio';
@@ -74,8 +118,13 @@ const ChatList = ({ onSelectConversation, selectedConversationId }) => {
 
   // Get conversation time
   const getConversationTime = (conversation) => {
-    if (conversation.lastMessage) {
-      return formatDistanceToNow(new Date(conversation.lastMessage.created_at), { addSuffix: true });
+    // Check for lastMessage or latest_message or last message from messages array
+    const lastMessage = conversation.lastMessage || 
+                       conversation.latest_message || 
+                       (conversation.messages && conversation.messages.length > 0 ? conversation.messages[0] : null);
+    
+    if (lastMessage) {
+      return formatDistanceToNow(new Date(lastMessage.created_at), { addSuffix: true });
     }
     return formatDistanceToNow(new Date(conversation.updated_at), { addSuffix: true });
   };
