@@ -23,7 +23,7 @@ import toast from 'react-hot-toast';
 import CommentsSection from '../comments/CommentsSection';
 import ShareModal from './ShareModal';
 import VideoPlayer from '../video/VideoPlayer';
-import ImageViewer, { Photo } from '../images/ImageViewer';
+import ImageModal from '../images/ImageModal';
 
 const PostCard = ({ post, onUpdate }) => {
   const { user } = useAuth();
@@ -33,12 +33,25 @@ const PostCard = ({ post, onUpdate }) => {
   const [imageLoading, setImageLoading] = useState(true);
   const [videoPlaying, setVideoPlaying] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   
   // Determine if this is a shared post and get the original post
   const isSharedPost = post.is_shared && post.shared_post;
   const originalPost = isSharedPost ? post.shared_post : post;
   const sharedByUser = isSharedPost ? post.user : null;
   
+  // Helper functions for image modal
+  const openImageModal = (index = 0) => {
+    setCurrentImageIndex(index);
+    setShowImageModal(true);
+  };
+
+  const closeImageModal = () => {
+    setShowImageModal(false);
+    setCurrentImageIndex(0);
+  };
+
   // Fallback for when sharedPost relationship isn't loaded
   if (post.is_shared && !post.shared_post) {
     console.warn('⚠️ Shared post missing shared_post relationship:', post.id);
@@ -385,48 +398,48 @@ const PostCard = ({ post, onUpdate }) => {
                   )}
                 </div>
               ) : (
-                /* Fixed Image Display with ImageViewer */
-                <ImageViewer images={originalPost.media}>
-                  <div className="relative">
-                    {originalPost.media.length === 1 ? (
-                      /* Single Image - With Photo wrapper */
-                      <Photo 
-                        src={originalPost.media[0]} 
+                /* Simplified Image Display - No ImageViewer wrapper */
+                <div className="relative bg-white rounded-lg overflow-hidden">
+                  {originalPost.media.length === 1 ? (
+                    /* Single Image */
+                    <div className="relative bg-gray-50">
+                      <img
+                        src={originalPost.media[0]}
                         alt="Post image"
-                      >
-                        <div className="relative">
-                          <img
-                            src={originalPost.media[0]}
-                            alt="Post image"
-                            className="w-full h-auto max-h-[600px] object-cover cursor-pointer"
-                            style={{ minHeight: '200px', display: 'block' }}
-                            onLoad={() => {
-                              console.log('✅ Image loaded:', originalPost.media[0]);
-                              setImageLoading(false);
-                            }}
-                            onError={(e) => {
-                              console.error('❌ Image failed to load:', originalPost.media[0]);
-                              setImageLoading(false);
-                            }}
-                          />
-                          
-                          {/* Loading overlay */}
-                          {imageLoading && (
-                            <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
-                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                            </div>
-                          )}
-                          
-                          {/* Hover overlay */}
-                          <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-all duration-300 flex items-center justify-center">
-                            <div className="opacity-0 hover:opacity-100 transition-opacity bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
-                              🔍 Click to view
-                            </div>
-                          </div>
+                        className="w-full h-auto max-h-[600px] object-cover cursor-pointer block"
+                        style={{ 
+                          minHeight: '200px',
+                          backgroundColor: '#f9fafb',
+                          border: 'none'
+                        }}
+                        onLoad={() => {
+                          console.log('✅ Single image loaded:', originalPost.media[0]);
+                          setImageLoading(false);
+                        }}
+                        onError={(e) => {
+                          console.error('❌ Single image failed to load:', originalPost.media[0]);
+                          setImageLoading(false);
+                          e.target.style.backgroundColor = '#fee2e2';
+                          e.target.style.color = '#dc2626';
+                          e.target.alt = 'Failed to load image';
+                        }}
+                        onClick={() => openImageModal(0)}
+                      />
+                      
+                      {/* Loading overlay */}
+                      {imageLoading && (
+                        <div className="absolute inset-0 bg-gray-200 flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                         </div>
-                      </Photo>
-                    ) : (
-                    /* Multiple Images - Direct img tags */
+                      )}
+                      
+                      {/* Click hint overlay */}
+                      <div className="absolute top-2 right-2 text-white text-xs bg-black/60 px-2 py-1 rounded opacity-0 hover:opacity-100 transition-opacity">
+                        Click to expand
+                      </div>
+                    </div>
+                  ) : (
+                    /* Multiple Images - Simplified without Photo wrapper */
                     <div className="grid gap-1" style={{
                       gridTemplateColumns: originalPost.media.length === 2 ? '1fr 1fr' : 
                                          originalPost.media.length === 3 ? '2fr 1fr' :
@@ -436,48 +449,47 @@ const PostCard = ({ post, onUpdate }) => {
                                        originalPost.media.length > 4 ? '1fr 1fr' : '1fr'
                     }}>
                       {originalPost.media.slice(0, originalPost.media.length > 4 ? 4 : originalPost.media.length).map((image, index) => (
-                        <Photo 
+                        <div 
                           key={index}
-                          src={image} 
-                          alt={`Post image ${index + 1}`}
+                          className="relative overflow-hidden cursor-pointer bg-gray-50 rounded"
+                          style={{ minHeight: '150px' }}
+                          onClick={() => openImageModal(index)}
                         >
-                          <div className="relative overflow-hidden cursor-pointer" style={{ minHeight: '150px' }}>
-                            <img
-                              src={image}
-                              alt={`Post image ${index + 1}`}
-                              className="w-full h-full object-cover hover:scale-105 transition-transform"
-                              style={{ 
-                                height: index === 0 && originalPost.media.length === 3 ? '320px' : '200px',
-                                display: 'block' 
-                              }}
-                              onLoad={() => {
-                                console.log(`✅ Image ${index + 1} loaded:`, image);
-                                setImageLoading(false);
-                              }}
-                              onError={(e) => {
-                                console.error(`❌ Image ${index + 1} failed:`, image);
-                                setImageLoading(false);
-                                // Add visual feedback for failed images
-                                e.target.style.backgroundColor = '#f3f4f6';
-                                e.target.style.border = '2px dashed #d1d5db';
-                              }}
-                            />
-                            
-                            {/* Show +N more for last image if more than 4 images */}
-                            {index === 3 && originalPost.media.length > 4 && (
-                              <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
-                                <span className="text-white text-2xl font-bold">
-                                  +{originalPost.media.length - 4}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </Photo>
+                          <img
+                            src={image}
+                            alt={`Post image ${index + 1}`}
+                            className="w-full h-full object-cover hover:scale-105 transition-transform block"
+                            style={{ 
+                              height: index === 0 && originalPost.media.length === 3 ? '320px' : '200px',
+                              backgroundColor: '#f9fafb',
+                              border: 'none'
+                            }}
+                            onLoad={() => {
+                              console.log(`✅ Image ${index + 1} loaded:`, image);
+                              setImageLoading(false);
+                            }}
+                            onError={(e) => {
+                              console.error(`❌ Image ${index + 1} failed:`, image);
+                              setImageLoading(false);
+                              e.target.style.backgroundColor = '#fee2e2';
+                              e.target.style.color = '#dc2626';
+                              e.target.alt = `Failed to load image ${index + 1}`;
+                            }}
+                          />
+                          
+                          {/* Show +N more for last image if more than 4 images */}
+                          {index === 3 && originalPost.media.length > 4 && (
+                            <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
+                              <span className="text-white text-2xl font-bold">
+                                +{originalPost.media.length - 4}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   )}
-                  </div>
-                </ImageViewer>
+                </div>
               )}
               
             </div>
@@ -590,6 +602,14 @@ const PostCard = ({ post, onUpdate }) => {
         post={originalPost}
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
+      />
+
+      {/* Image Modal */}
+      <ImageModal
+        isOpen={showImageModal}
+        onClose={closeImageModal}
+        images={originalPost.media || []}
+        currentIndex={currentImageIndex}
       />
     </div>
   );
