@@ -22,6 +22,7 @@ const CommentItem = ({ comment, postId, onReply, onEdit, onDelete }) => {
     mutationFn: () => api.post(`/comments/${comment.id}/like`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['userPosts'] });
       queryClient.invalidateQueries({ queryKey: ['post', postId] });
     },
   });
@@ -31,6 +32,7 @@ const CommentItem = ({ comment, postId, onReply, onEdit, onDelete }) => {
     mutationFn: (content) => api.put(`/comments/${comment.id}`, { content }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['userPosts'] });
       queryClient.invalidateQueries({ queryKey: ['post', postId] });
       setIsEditing(false);
       toast.success('Comment updated successfully');
@@ -45,6 +47,7 @@ const CommentItem = ({ comment, postId, onReply, onEdit, onDelete }) => {
     mutationFn: () => api.delete(`/comments/${comment.id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['userPosts'] });
       queryClient.invalidateQueries({ queryKey: ['post', postId] });
       toast.success('Comment deleted successfully');
     },

@@ -77,6 +77,7 @@ const CreatePost = ({ onClose, onPostCreated }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['userPosts'] });
       toast.success('Post created successfully!');
       handleClose();
       onPostCreated?.();

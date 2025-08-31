@@ -42,6 +42,7 @@ const Dashboard = () => {
     setShowCreatePost(false);
     // Invalidate and refetch posts to show the new post
     queryClient.invalidateQueries({ queryKey: ['posts'] });
+    queryClient.invalidateQueries({ queryKey: ['userPosts'] });
     toast.success('Post created successfully!');
   };
 

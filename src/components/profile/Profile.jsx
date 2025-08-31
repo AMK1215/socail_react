@@ -398,42 +398,15 @@ const Profile = () => {
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="space-y-6">
                     {posts.map((post) => (
-                      <div key={post.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        {/* Post Preview */}
-                        <div className="p-4">
-                          <p className="text-gray-900 line-clamp-3">{post.content}</p>
-                        </div>
-                        
-                        {/* Post Media Preview */}
-                        {post.media && post.media.length > 0 && (
-                          <div className="aspect-square">
-                            <img
-                              src={post.media[0]}
-                              alt="Post media"
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        )}
-                        
-                        {/* Post Footer */}
-                        <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
-                                                      <div className="flex items-center justify-between text-sm text-gray-600">
-                              <span>{formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}</span>
-                              <div className="flex items-center space-x-3">
-                                <span className="flex items-center space-x-1">
-                                  <Heart className="h-4 w-4" />
-                                  <span>{post.likes?.length || 0}</span>
-                                </span>
-                                <span className="flex items-center space-x-1">
-                                  <MessageCircle className="h-4 w-4" />
-                                  <span>{post.comments?.length || 0}</span>
-                                </span>
-                              </div>
-                            </div>
-                        </div>
-                      </div>
+                      <PostCard 
+                        key={post.id} 
+                        post={post}
+                        onUpdate={() => {
+                          queryClient.invalidateQueries({ queryKey: ['userPosts', profileUserId] });
+                        }}
+                      />
                     ))}
                   </div>
                 )}

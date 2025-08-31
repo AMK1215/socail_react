@@ -9,7 +9,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { usePostUpdates } from '../../hooks/useBroadcasting';
 
 const PostDetail = () => {
-    const { id } = useParams();
+    const { postId } = useParams();
+    const id = postId; // For backward compatibility
     const navigate = useNavigate();
     const { user } = useAuth();
     const queryClient = useQueryClient();
@@ -32,6 +33,7 @@ const PostDetail = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['post', id] });
             queryClient.invalidateQueries({ queryKey: ['posts'] });
+            queryClient.invalidateQueries({ queryKey: ['userPosts'] });
         },
     });
 
@@ -41,6 +43,7 @@ const PostDetail = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['post', id] });
             queryClient.invalidateQueries({ queryKey: ['posts'] });
+            queryClient.invalidateQueries({ queryKey: ['userPosts'] });
             setIsEditing(false);
             toast.success('Post updated successfully');
         },

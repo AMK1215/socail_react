@@ -21,33 +21,72 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 import CommentsSection from '../comments/CommentsSection';
+import ShareModal from './ShareModal';
+import VideoPlayer from '../video/VideoPlayer';
+import ImageViewer, { Photo } from '../images/ImageViewer';
 
 const PostCard = ({ post, onUpdate }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showActions, setShowActions] = useState(false);
   const [showFullContent, setShowFullContent] = useState(false);
-  const [showImageModal, setShowImageModal] = useState(false);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageLoading, setImageLoading] = useState(true);
   const [videoPlaying, setVideoPlaying] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  
+  // Determine if this is a shared post and get the original post
+  const isSharedPost = post.is_shared && post.shared_post;
+  const originalPost = isSharedPost ? post.shared_post : post;
+  const sharedByUser = isSharedPost ? post.user : null;
+  
+  // Fallback for when sharedPost relationship isn't loaded
+  if (post.is_shared && !post.shared_post) {
+    console.warn('⚠️ Shared post missing shared_post relationship:', post.id);
+    // Return a placeholder or empty state
+    return (
+      <div className="bg-white rounded-lg shadow-md border-0 overflow-hidden mb-4 p-4">
+        <div className="text-center text-gray-500">
+          <p>Shared post content not available</p>
+          <p className="text-sm">Post ID: {post.id}</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Debug logging for shared posts
+  useEffect(() => {
+    if (post.is_shared) {
+      console.log('🔄 Shared Post Debug:', {
+        postId: post.id,
+        isShared: post.is_shared,
+        hasSharedPost: !!post.shared_post,
+        sharedPostId: post.shared_post?.id,
+        originalContent: post.shared_post?.content,
+        originalMedia: post.shared_post?.media,
+        sharedByUser: post.user?.name,
+        shareContent: post.share_content
+      });
+    }
+  }, [post]);
   
   // Mobile detection - Commented out since video is working on desktop and mobile
   // const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-  const isLiked = post.likes?.some(like => like.user_id === user?.id);
-  const likeCount = post.likes?.length || 0;
-  const commentCount = post.comments?.length || 0;
+  const isLiked = originalPost.likes?.some(like => like.user_id === user?.id);
+  const likeCount = originalPost.likes?.length || 0;
+  const commentCount = originalPost.comments?.length || 0;
+  const shareCount = originalPost.shares?.length || 0;
   const isOwnPost = post.user_id === user?.id;
 
   // Like/Unlike mutation
   const likeMutation = useMutation({
     mutationFn: async () => {
-      const response = await api.post(`/posts/${post.id}/like`);
+      const response = await api.post(`/posts/${originalPost.id}/like`);
       return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['userPosts'] });
     },
   });
 
@@ -60,6 +99,7 @@ const PostCard = ({ post, onUpdate }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['userPosts'] });
       toast.success('Post deleted successfully!');
     },
     onError: () => {
@@ -83,24 +123,7 @@ const PostCard = ({ post, onUpdate }) => {
     setShowFullContent(!showFullContent);
   };
 
-  const handleImageClick = (index) => {
-    if (post.media && post.media.length > 1) {
-      setCurrentImageIndex(index);
-      setShowImageModal(true);
-    }
-  };
 
-  const nextImage = () => {
-    if (post.media && currentImageIndex < post.media.length - 1) {
-      setCurrentImageIndex(currentImageIndex + 1);
-    }
-  };
-
-  const prevImage = () => {
-    if (currentImageIndex > 0) {
-      setCurrentImageIndex(currentImageIndex - 1);
-    }
-  };
 
   // Reset image loading state when post changes
   useEffect(() => {
@@ -124,72 +147,12 @@ const PostCard = ({ post, onUpdate }) => {
     return () => clearTimeout(timer);
   }, [post.id]);
 
-  // Keyboard navigation and touch support for image modal
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (!showImageModal) return;
-      
-      switch (e.key) {
-        case 'ArrowLeft':
-          prevImage();
-          break;
-        case 'ArrowRight':
-          nextImage();
-          break;
-        case 'Escape':
-          setShowImageModal(false);
-          break;
-        default:
-          break;
-      }
-    };
 
-    // Touch/swipe support for mobile
-    let startX = 0;
-    let startY = 0;
 
-    const handleTouchStart = (e) => {
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-    };
-
-    const handleTouchEnd = (e) => {
-      if (!showImageModal) return;
-      
-      const endX = e.changedTouches[0].clientX;
-      const endY = e.changedTouches[0].clientY;
-      const diffX = startX - endX;
-      const diffY = startY - endY;
-
-      // Only handle horizontal swipes (ignore vertical swipes)
-      if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
-        if (diffX > 0) {
-          nextImage(); // Swipe left = next image
-        } else {
-          prevImage(); // Swipe right = previous image
-        }
-      }
-    };
-
-    if (showImageModal) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.addEventListener('touchstart', handleTouchStart);
-      document.addEventListener('touchend', handleTouchEnd);
-      document.body.style.overflow = 'hidden';
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('touchstart', handleTouchStart);
-      document.removeEventListener('touchend', handleTouchEnd);
-      document.body.style.overflow = 'unset';
-    };
-  }, [showImageModal, currentImageIndex]);
-
-  const shouldTruncate = post.content.length > 200;
+  const shouldTruncate = originalPost.content && originalPost.content.length > 200;
   const displayContent = shouldTruncate && !showFullContent 
-    ? post.content.substring(0, 200) + '...' 
-    : post.content;
+    ? originalPost.content.substring(0, 200) + '...' 
+    : originalPost.content;
 
   const reactionTypes = [
     { type: 'like', icon: '👍', label: 'Like' },
@@ -202,48 +165,70 @@ const PostCard = ({ post, onUpdate }) => {
 
   return (
     <div className="bg-white rounded-lg shadow-md border-0 overflow-hidden mb-4" data-post-id={post.id}>
+      {/* Shared Post Header */}
+      {isSharedPost && (
+        <div className="px-4 pt-4 pb-2">
+          <div className="flex items-center space-x-2 text-sm text-gray-600">
+            <Share2 className="w-4 h-4" />
+            <Link to={`/profile/${sharedByUser.id}`} className="font-medium hover:text-blue-600 transition-colors">
+              {sharedByUser.name}
+            </Link>
+            <span>shared a post</span>
+            <span className="text-gray-400">•</span>
+            <span>{formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}</span>
+          </div>
+          {post.share_content && (
+            <div className="mt-2">
+              <p className="text-gray-900 text-sm">{post.share_content}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Original Post Container */}
+      <div className={isSharedPost ? "mx-4 mb-4 border border-gray-200 rounded-lg" : ""}>
       {/* Post Header */}
-      <div className="p-4">
+        <div className="p-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-3 flex-1 min-w-0">
-            <Link to={`/profile/${post.user.id}`} className="flex-shrink-0">
-              {post.user?.profile?.avatar_url ? (
-                <img
-                  src={post.user.profile.avatar_url}
-                  alt={post.user.name}
-                  className="w-10 h-10 rounded-full object-cover border-2 border-gray-100"
-                />
-              ) : (
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-white font-semibold text-sm">
-                  {post.user?.name?.charAt(0).toUpperCase()}
+              <Link to={`/profile/${originalPost.user.id}`} className="flex-shrink-0">
+                {originalPost.user?.profile?.avatar_url ? (
+                  <img
+                    src={originalPost.user.profile.avatar_url}
+                    alt={originalPost.user.name}
+                    className="w-10 h-10 rounded-full object-cover border-2 border-gray-100"
+                  />
+                ) : (
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                    <span className="text-white font-semibold text-sm">
+                    {originalPost.user?.name?.charAt(0).toUpperCase()}
                 </span>
               </div>
-              )}
+                )}
             </Link>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2">
-              <Link to={`/profile/${post.user.id}`} className="block">
-                  <p className="font-semibold text-gray-900 hover:text-blue-600 transition-colors text-sm truncate">
-                  {post.user?.name}
+                <div className="flex items-center space-x-2">
+                <Link to={`/profile/${originalPost.user.id}`} className="block">
+                    <p className="font-semibold text-gray-900 hover:text-blue-600 transition-colors text-sm truncate">
+                    {originalPost.user?.name}
                 </p>
               </Link>
-                {post.metadata?.location && (
+                {originalPost.metadata?.location && (
                   <>
                     <span className="text-gray-400">•</span>
                     <div className="flex items-center space-x-1 text-gray-500">
                       <MapPin className="h-3 w-3" />
-                      <span className="text-xs truncate max-w-[80px]">{post.metadata.location}</span>
+                      <span className="text-xs truncate max-w-[80px]">{originalPost.metadata.location}</span>
                     </div>
                   </>
                 )}
               </div>
               <div className="flex items-center space-x-2 text-xs text-gray-500 mt-0.5">
-                <span>{formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}</span>
+                <span>{formatDistanceToNow(new Date(isSharedPost ? originalPost.created_at : post.created_at), { addSuffix: true })}</span>
                 <span className="text-gray-400">•</span>
                 <div className="flex items-center space-x-1">
-                  {post.is_public ? <Globe className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
-                  <span>{post.is_public ? 'Public' : 'Friends only'}</span>
+                  {originalPost.is_public ? <Globe className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+                  <span>{originalPost.is_public ? 'Public' : 'Friends only'}</span>
                 </div>
               </div>
             </div>
@@ -293,27 +278,27 @@ const PostCard = ({ post, onUpdate }) => {
       </div>
 
       {/* Post Content */}
-          {post.content && (
-        <div className="px-4 pb-3">
+        {originalPost.content && (
+          <div className="px-4 pb-3">
             <div className="text-gray-900 leading-relaxed">
-            <p className="whitespace-pre-wrap text-sm">{displayContent}</p>
+              <p className="whitespace-pre-wrap text-sm">{displayContent}</p>
               {shouldTruncate && (
                 <button
                   onClick={toggleContent}
-                className="text-blue-600 hover:text-blue-700 font-medium mt-2 text-sm transition-colors"
+                  className="text-blue-600 hover:text-blue-700 font-medium mt-2 text-sm transition-colors"
                 >
                   {showFullContent ? 'Show less' : 'Show more'}
                 </button>
               )}
-          </div>
+            </div>
             </div>
           )}
 
-      {/* Media Content - Facebook Style */}
-      {post.media && post.media.length > 0 && (
-        <div className="relative">
-          {/* Video Content */}
-          {post.type === 'video' ? (
+          {/* Media Content - Facebook Style */}
+        {originalPost.media && originalPost.media.length > 0 && (
+            <div className="relative">
+                                       {/* Video Content */}
+          {originalPost.type === 'video' ? (
             <div className="relative bg-gray-100 overflow-hidden">
                              {/* Debug info for video - Commented out since video is working on desktop and mobile */}
                              {/* {process.env.NODE_ENV === 'development' && (
@@ -366,109 +351,31 @@ const PostCard = ({ post, onUpdate }) => {
                                console.log('🎬 Video element src:', post.media[0]);
                                return null;
                              })()} */}
-                                               <video
-                               ref={(el) => {
-                                 // Mobile-specific setup - Commented out since video is working on desktop and mobile
-                                 // if (el && isMobile) {
-                                 //   console.log('📱 Mobile video element ready:', el);
-                                 //   // Mobile-specific setup
-                                 //   el.addEventListener('touchstart', () => {
-                                 //     console.log('📱 Mobile video touch detected');
-                                 //   });
-                                 // }
-                               }}
-                               src={post.media[0]}
-                               controls
-                               playsInline
-                               webkit-playsinline="true"
-                               x5-playsinline="true"
-                               x5-video-player-type="h5"
-                               x5-video-player-fullscreen="true"
-                               className="w-full h-auto max-h-[500px] object-cover cursor-pointer"
-                               style={{ minHeight: '200px' }}
-                               onClick={() => {
-                                 // Video click logging - Commented out since video is working on desktop and mobile
-                                 // console.log('🎬 Video clicked!');
-                                 // if (isMobile) {
-                                 //   console.log('📱 Mobile video click detected');
-                                 // }
-                               }}
-                    onLoadStart={() => {
-                      // Video loading logging - Commented out since video is working on desktop and mobile
-                      // console.log('🎬 Video loading started:', post.media[0]);
-                      setImageLoading(true);
-                    }}
-                    onLoadedData={() => {
-                      // Video loaded logging - Commented out since video is working on desktop and mobile
-                      // console.log('✅ Video loaded successfully:', post.media[0]);
+                  {/* Professional Video.js Player */}
+                  <VideoPlayer
+                    src={originalPost.media[0]}
+                    poster={originalPost.media[1] || null} // Use second media as poster if available
+                    autoplay={false}
+                    muted={false}
+                    className="w-full h-auto max-h-[500px] rounded-lg overflow-hidden"
+                    style={{ minHeight: '200px' }}
+                    onReady={(player) => {
+                      console.log('🎥 Video.js player ready for post:', originalPost.id);
                       setImageLoading(false);
                     }}
-                    onError={(e) => {
-                      setImageLoading(false);
-                      console.error('❌ Video failed to load:', {
-                        src: post.media[0]
-                        // Mobile-specific error info - Commented out since video is working on desktop and mobile
-                        // isMobile: isMobile,
-                        // userAgent: navigator.userAgent
-                      });
-                      // Show a nice placeholder if video fails to load
-                      e.target.style.display = 'none';
-                      const placeholder = document.createElement('div');
-                      placeholder.className = 'w-full h-64 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg flex flex-col items-center justify-center text-gray-500';
-                      placeholder.innerHTML = `
-                        <svg class="w-16 h-16 mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                        <p class="text-sm font-medium">Video not available</p>
-                      `;
-                      e.target.parentNode.appendChild(placeholder);
-                    }}
-                    // Video state logging - Commented out since video is working on desktop and mobile
-                    // onCanPlay={() => console.log('🎯 Video can play:', post.media[0])}
-                    // onCanPlayThrough={() => console.log('🚀 Video can play through:', post.media[0])}
-                    // onWaiting={() => console.log('⏳ Video waiting for data:', post.media[0])}
-                    // onStalled={() => console.log('🔄 Video stalled:', post.media[0])}
-                    onPlay={() => {
-                      // Video play logging - Commented out since video is working on desktop and mobile
-                      // console.log('▶️ Video started playing:', post.media[0]);
+                    onPlay={(player) => {
+                      console.log('▶️ Video started playing:', originalPost.media[0]);
                       setVideoPlaying(true);
                     }}
-                    onPause={() => {
-                      // Video pause logging - Commented out since video is working on desktop and mobile
-                      // console.log('⏸️ Video paused:', post.media[0]);
+                    onPause={(player) => {
+                      console.log('⏸️ Video paused:', originalPost.media[0]);
                       setVideoPlaying(false);
                     }}
-                    // Mobile-specific event handlers - Commented out since video is working on desktop and mobile
-                    // onTouchStart={() => console.log('📱 Video touch started:', post.media[0])}
-                    // onTouchEnd={() => console.log('📱 Video touch ended:', post.media[0])}
-                    // onLoadedMetadata={() => console.log('📱 Video metadata loaded for mobile:', post.media[0])}
+                    onEnded={(player) => {
+                      console.log('🏁 Video ended:', originalPost.media[0]);
+                      setVideoPlaying(false);
+                    }}
                   />
-                  
-                  {/* Video Play Button Overlay - Only show when video is paused */}
-                  {!videoPlaying && (
-                    <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          const videoElement = e.target.closest('.relative').querySelector('video');
-                          if (videoElement) {
-                            // Play button logging - Commented out since video is working on desktop and mobile
-                            // console.log('🎬 Play button clicked for mobile!');
-                            videoElement.play().catch(err => {
-                              // Mobile video play error logging - Commented out since video is working on desktop and mobile
-                              // console.error('❌ Mobile video play failed:', err);
-                            });
-                          }
-                        }}
-                        className="w-16 h-16 bg-white bg-opacity-90 rounded-full flex items-center justify-center shadow-lg hover:bg-opacity-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <svg className="w-8 h-8 text-blue-600 ml-1" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M8 5v10l8-5-8-5z" />
-                        </svg>
-                      </button>
-                    </div>
-                  )}
                   
                   {/* Loading overlay for video */}
                   {imageLoading && (
@@ -477,88 +384,108 @@ const PostCard = ({ post, onUpdate }) => {
                     </div>
                   )}
                 </div>
-          ) : (
-            /* Image Content - Facebook Style */
-            <div className="relative cursor-pointer group bg-gray-100" onClick={() => handleImageClick(0)}>
-                  {/* Always show the image - no more black screen! */}
-                  <img
-                    src={post.media[0]}
-                    alt="Post image"
-                    className="w-full h-auto max-h-[600px] object-cover relative z-20"
-                    style={{ minHeight: '200px' }}
-                    onLoad={() => {
-                      setImageLoading(false);
-                    }}
-                        onError={(e) => {
-                      setImageLoading(false);
-                      // Show a nice placeholder if image fails to load
-                          e.target.style.display = 'none';
-                      // Create a fallback placeholder
-                      const placeholder = document.createElement('div');
-                      placeholder.className = 'w-full h-64 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg flex flex-col items-center justify-center text-gray-500';
-                      placeholder.innerHTML = `
-                        <svg class="w-16 h-16 mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <p class="text-sm font-medium">Image not available</p>
-                      `;
-                      e.target.parentNode.appendChild(placeholder);
-                    }}
-                  />
-                  
-                  {/* Fallback display - only show when image fails */}
-                  <div className="absolute inset-0 bg-gray-100 rounded-lg flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10">
-                    <div className="text-center text-gray-500">
-                      <svg className="w-16 h-16 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <p className="text-sm font-medium">Click to view photos</p>
-                    </div>
-                  </div>
-                  
-                  {/* Loading overlay - only show when actually loading */}
-                  {imageLoading && (
-                    <div className="absolute inset-0 loading-overlay rounded-lg flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                    </div>
-                  )}
-                  
-                  {/* Multiple Images Indicator - Facebook Style */}
-                  {post.media.length > 1 && (
-                    <div className="absolute top-4 right-4 bg-black bg-opacity-70 text-white px-3 py-1 rounded-full text-sm font-medium">
-                      +{post.media.length - 1}
-                    </div>
-                  )}
-                  
-                  {/* Click to view overlay - Facebook Style */}
-                  {post.media.length > 1 && (
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-200 rounded-lg flex items-center justify-center">
-                      <div className="bg-white bg-opacity-90 text-gray-800 px-4 py-2 rounded-lg font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        Click to view all photos
+              ) : (
+                /* Fixed Image Display with ImageViewer */
+                <ImageViewer images={originalPost.media}>
+                  <div className="relative">
+                    {originalPost.media.length === 1 ? (
+                      /* Single Image - With Photo wrapper */
+                      <Photo 
+                        src={originalPost.media[0]} 
+                        alt="Post image"
+                      >
+                        <div className="relative">
+                          <img
+                            src={originalPost.media[0]}
+                            alt="Post image"
+                            className="w-full h-auto max-h-[600px] object-cover cursor-pointer"
+                            style={{ minHeight: '200px', display: 'block' }}
+                            onLoad={() => {
+                              console.log('✅ Image loaded:', originalPost.media[0]);
+                              setImageLoading(false);
+                            }}
+                            onError={(e) => {
+                              console.error('❌ Image failed to load:', originalPost.media[0]);
+                              setImageLoading(false);
+                            }}
+                          />
+                          
+                          {/* Loading overlay */}
+                          {imageLoading && (
+                            <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                            </div>
+                          )}
+                          
+                          {/* Hover overlay */}
+                          <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-all duration-300 flex items-center justify-center">
+                            <div className="opacity-0 hover:opacity-100 transition-opacity bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
+                              🔍 Click to view
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      </Photo>
+                    ) : (
+                    /* Multiple Images - Direct img tags */
+                    <div className="grid gap-1" style={{
+                      gridTemplateColumns: originalPost.media.length === 2 ? '1fr 1fr' : 
+                                         originalPost.media.length === 3 ? '2fr 1fr' :
+                                         originalPost.media.length === 4 ? '1fr 1fr' : '2fr 1fr 1fr',
+                      gridTemplateRows: originalPost.media.length === 3 ? '1fr 1fr' :
+                                       originalPost.media.length === 4 ? '1fr 1fr' : 
+                                       originalPost.media.length > 4 ? '1fr 1fr' : '1fr'
+                    }}>
+                      {originalPost.media.slice(0, originalPost.media.length > 4 ? 4 : originalPost.media.length).map((image, index) => (
+                        <Photo 
+                          key={index}
+                          src={image} 
+                          alt={`Post image ${index + 1}`}
+                        >
+                          <div className="relative overflow-hidden cursor-pointer" style={{ minHeight: '150px' }}>
+                            <img
+                              src={image}
+                              alt={`Post image ${index + 1}`}
+                              className="w-full h-full object-cover hover:scale-105 transition-transform"
+                              style={{ 
+                                height: index === 0 && originalPost.media.length === 3 ? '320px' : '200px',
+                                display: 'block' 
+                              }}
+                              onLoad={() => {
+                                console.log(`✅ Image ${index + 1} loaded:`, image);
+                                setImageLoading(false);
+                              }}
+                              onError={(e) => {
+                                console.error(`❌ Image ${index + 1} failed:`, image);
+                                setImageLoading(false);
+                                // Add visual feedback for failed images
+                                e.target.style.backgroundColor = '#f3f4f6';
+                                e.target.style.border = '2px dashed #d1d5db';
+                              }}
+                            />
+                            
+                            {/* Show +N more for last image if more than 4 images */}
+                            {index === 3 && originalPost.media.length > 4 && (
+                              <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
+                                <span className="text-white text-2xl font-bold">
+                                  +{originalPost.media.length - 4}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </Photo>
+                      ))}
+                    </div>
                   )}
-                </div>
-          )}
-          
-          {/* Navigation Dots - Only for multiple images */}
-          {post.type === 'image' && post.media.length > 1 && (
-            <div className="flex justify-center space-x-2 mt-3">
-              {post.media.map((_, index) => (
-                <div
-                  key={index}
-                  className={`w-2 h-2 rounded-full transition-colors ${
-                    index === 0 ? 'bg-blue-500' : 'bg-gray-300'
-                  }`}
-                />
-              ))}
+                  </div>
+                </ImageViewer>
+              )}
+              
             </div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Post Stats */}
-      {(likeCount > 0 || commentCount > 0) && (
+      {(likeCount > 0 || commentCount > 0 || shareCount > 0) && (
         <div className="px-4 py-3">
         <div className="flex items-center justify-between text-sm text-gray-600">
             <div className="flex items-center space-x-1">
@@ -571,7 +498,7 @@ const PostCard = ({ post, onUpdate }) => {
                     <div className="w-5 h-5 bg-red-500 rounded-full border-2 border-white flex items-center justify-center">
                       <span className="text-white text-xs">❤️</span>
                     </div>
-                  </div>
+                    </div>
                   <button className="text-gray-600 hover:underline">
                     {likeCount} {likeCount === 1 ? 'like' : 'likes'}
                   </button>
@@ -582,6 +509,11 @@ const PostCard = ({ post, onUpdate }) => {
             {commentCount > 0 && (
                 <button className="text-gray-600 hover:underline">
                   {commentCount} comment{commentCount !== 1 ? 's' : ''}
+                </button>
+            )}
+            {shareCount > 0 && (
+                <button className="text-gray-600 hover:underline">
+                  {shareCount} share{shareCount !== 1 ? 's' : ''}
                 </button>
             )}
           </div>
@@ -622,7 +554,10 @@ const PostCard = ({ post, onUpdate }) => {
           </button>
 
           {/* Share Button */}
-          <button className="flex items-center justify-center space-x-2 px-4 py-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors flex-1">
+          <button
+            onClick={() => setShowShareModal(true)}
+            className="flex items-center justify-center space-x-2 px-4 py-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors flex-1"
+          >
             <Share2 className="h-5 w-5" />
             <span className="font-medium text-sm">Share</span>
           </button>
@@ -631,11 +566,12 @@ const PostCard = ({ post, onUpdate }) => {
 
       {/* Comments Section */}
       <CommentsSection 
-        postId={post.id} 
+        postId={originalPost.id} 
         commentCount={commentCount}
         onCommentAdded={() => {
           // Refresh post data when comment is added
           queryClient.invalidateQueries({ queryKey: ['posts'] });
+          queryClient.invalidateQueries({ queryKey: ['userPosts'] });
         }}
       />
 
@@ -647,82 +583,14 @@ const PostCard = ({ post, onUpdate }) => {
         />
       )}
 
-      {/* Image Modal - Facebook Style */}
-      {showImageModal && post.media && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
-          <div className="relative max-w-4xl max-h-full">
-            {/* Close Button */}
-            <button
-              onClick={() => setShowImageModal(false)}
-              className="absolute top-4 right-4 z-10 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
 
-            {/* Main Image */}
-            <img
-              src={post.media[currentImageIndex]}
-              alt={`Post image ${currentImageIndex + 1}`}
-              className="max-w-full max-h-full object-contain"
-            />
 
-            {/* Navigation Arrows */}
-            {post.media.length > 1 && (
-              <>
-                {/* Previous Button */}
-                {currentImageIndex > 0 && (
-                  <button
-                    onClick={prevImage}
-                    className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-3 rounded-full hover:bg-opacity-70 transition-colors"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </button>
-                )}
-
-                {/* Next Button */}
-                {currentImageIndex < post.media.length - 1 && (
-                  <button
-                    onClick={nextImage}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-3 rounded-full hover:bg-opacity-70 transition-colors"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                )}
-
-                {/* Image Counter */}
-                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
-                  {currentImageIndex + 1} of {post.media.length}
-                </div>
-
-                {/* Thumbnail Navigation */}
-                <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 flex space-x-2">
-                  {post.media.map((media, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentImageIndex(index)}
-                      className={`w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${
-                        index === currentImageIndex ? 'border-blue-500' : 'border-transparent'
-                      }`}
-                    >
-                      <img
-                        src={media}
-                        alt={`Thumbnail ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Share Modal */}
+      <ShareModal
+        post={originalPost}
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+      />
     </div>
   );
 };

@@ -41,25 +41,13 @@ const PeopleYouMayKnow = () => {
   // Send friend request mutation
   const sendRequestMutation = useMutation({
     mutationFn: async (userId) => {
-      console.log('=== MUTATION START ===');
-      console.log('Mutation function called with userId:', userId);
-      console.log('Making API request to:', `/friends/${userId}`);
-      
-      try {
-        const response = await api.post(`/friends/${userId}`);
-        console.log('API Response received:', response);
-        console.log('Response data:', response.data);
-        console.log('=== MUTATION SUCCESS ===');
-        return response.data;
-      } catch (error) {
-        console.log('=== MUTATION ERROR ===');
-        console.error('API Error:', error);
-        console.error('Error response:', error.response);
-        throw error;
-      }
+      console.log('🚀 PeopleYouMayKnow: Sending friend request to user:', userId);
+      const response = await api.post(`/friends/${userId}`);
+      console.log('✅ PeopleYouMayKnow: Friend request response:', response.data);
+      return response.data;
     },
     onSuccess: (data, userId) => {
-      console.log('Friend request sent successfully:', data);
+      console.log('🎉 PeopleYouMayKnow: Friend request successful:', data);
       toast.success('Friend request sent!', {
         style: {
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -68,22 +56,30 @@ const PeopleYouMayKnow = () => {
       });
       // Mark user as having a sent request
       setSentRequestUsers(prev => new Set([...prev, userId]));
-      // Don't remove from suggestions immediately, just change button state
       // Refresh both queries to get updated data
       queryClient.invalidateQueries({ queryKey: ['suggestedFriends'] });
       queryClient.invalidateQueries({ queryKey: ['sentFriendRequests'] });
       queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['friendship-status'] });
     },
     onError: (error) => {
-      console.error('Friend request error:', error);
-      console.error('Error response:', error.response?.data);
+      console.error('❌ PeopleYouMayKnow: Friend request error:', error.response?.data);
       const errorMessage = error.response?.data?.message || 'Failed to send friend request';
-      toast.error(errorMessage, {
-        style: {
-          background: '#ef4444',
-          color: 'white',
-        },
-      });
+      
+      // Handle specific error cases
+      if (errorMessage.includes('already sent')) {
+        queryClient.invalidateQueries({ queryKey: ['friendship-status'] });
+        queryClient.invalidateQueries({ queryKey: ['suggestedFriends'] });
+        toast.error('Friend request was already sent');
+      } else {
+        toast.error(errorMessage, {
+          style: {
+            background: '#ef4444',
+            color: 'white',
+          },
+        });
+      }
     },
   });
 

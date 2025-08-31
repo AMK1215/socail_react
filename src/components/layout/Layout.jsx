@@ -1,7 +1,11 @@
 import React, { useState, createContext, useContext } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
+import { api } from '../../services/api';
 import ChatManager from '../chat/ChatManager';
+import NotificationDropdown from '../notifications/NotificationDropdown';
+import GlobalSearch from '../search/GlobalSearch';
 import { 
   Home, 
   User, 
@@ -29,6 +33,21 @@ const Layout = ({ children }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+
+  // Fetch unread notification count
+  const { data: unreadCountData } = useQuery({
+    queryKey: ['notifications-unread-count'],
+    queryFn: async () => {
+      const response = await api.get('/notifications/unread-count');
+      return response.data;
+    },
+    refetchInterval: 30000, // Refresh every 30 seconds
+    enabled: !!user,
+  });
+
+  const unreadCount = unreadCountData?.unread_count || 0;
 
   const handleLogout = () => {
     logout();
@@ -101,20 +120,20 @@ const Layout = ({ children }) => {
                  )}
                </button>
 
-               {/* Search - Mobile optimized */}
-               <div className="relative hidden sm:block">
-                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                   <Search className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
-                 </div>
-                 <input
-                   type="text"
-                   placeholder="Search..."
-                   className="block w-28 sm:w-48 md:w-64 pl-8 sm:pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                 />
-               </div>
+               {/* Search Button - Desktop */}
+               <button 
+                 onClick={() => setShowSearch(true)}
+                 className="hidden sm:flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+               >
+                 <Search className="h-4 w-4" />
+                 <span className="hidden md:inline">Search...</span>
+               </button>
 
                {/* Mobile Search Icon */}
-               <button className="sm:hidden p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
+               <button 
+                 onClick={() => setShowSearch(true)}
+                 className="sm:hidden p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+               >
                  <Search className="h-5 w-5" />
                </button>
 
@@ -132,13 +151,27 @@ const Layout = ({ children }) => {
                </div>
 
                {/* Notifications */}
-               <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors relative">
-                 <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
-                 {/* Notification Badge */}
-                 <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
-                   3
-                 </span>
-               </button>
+               <div className="relative">
+                 <button 
+                   onClick={() => setShowNotifications(!showNotifications)}
+                   className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors relative"
+                 >
+                   <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
+                   {/* Notification Badge */}
+                   {unreadCount > 0 && (
+                     <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full text-xs text-white flex items-center justify-center font-medium">
+                       {unreadCount > 99 ? '99+' : unreadCount}
+                     </span>
+                   )}
+                 </button>
+
+                 {/* Notification Dropdown */}
+                 <NotificationDropdown
+                   isOpen={showNotifications}
+                   onClose={() => setShowNotifications(false)}
+                   unreadCount={unreadCount}
+                 />
+               </div>
 
               {/* Profile Menu */}
               <div className="relative">
@@ -194,18 +227,18 @@ const Layout = ({ children }) => {
         {isMobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200 bg-white shadow-lg animate-slide-down">
             <div className="px-4 pt-4 pb-4 space-y-2">
-              {/* Mobile Search Bar */}
+              {/* Mobile Search Button */}
               <div className="sm:hidden mb-4">
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    className="block w-full pl-10 pr-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
+                <button 
+                  onClick={() => {
+                    setShowSearch(true);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="flex items-center space-x-3 w-full px-4 py-3 text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <Search className="h-5 w-5 text-gray-500" />
+                  <span>Search for people and posts...</span>
+                </button>
               </div>
 
               {/* Navigation Links */}
@@ -257,12 +290,21 @@ const Layout = ({ children }) => {
       </main>
 
       {/* Click outside to close dropdowns */}
-      {isProfileMenuOpen && (
+      {(isProfileMenuOpen || showNotifications) && (
         <div
           className="fixed inset-0 z-40"
-          onClick={() => setIsProfileMenuOpen(false)}
+          onClick={() => {
+            setIsProfileMenuOpen(false);
+            setShowNotifications(false);
+          }}
         />
       )}
+
+      {/* Global Search Modal */}
+      <GlobalSearch 
+        isOpen={showSearch} 
+        onClose={() => setShowSearch(false)} 
+      />
 
       {/* Floating Chat Manager */}
       <ChatManager />

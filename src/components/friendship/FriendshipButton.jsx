@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { UserPlus, UserCheck, UserX, Clock, Check, X } from 'lucide-react';
 import { api } from '../../services/api';
 import { toast } from 'react-hot-toast';
+import FriendshipDebug from '../debug/FriendshipDebug';
 
 const FriendshipButton = ({ targetUserId, currentUserId, initialStatus = null }) => {
   const queryClient = useQueryClient();
+  const [isProcessing, setIsProcessing] = useState(false);
   
   // Get current friendship status
   const { data: statusData } = useQuery({
@@ -21,8 +23,11 @@ const FriendshipButton = ({ targetUserId, currentUserId, initialStatus = null })
         throw error;
       }
     },
+    staleTime: 0, // Always refetch - no caching
+    cacheTime: 0, // Don't keep in cache
     retry: false,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 
   const currentStatus = statusData?.data || { status: 'none' };
@@ -33,14 +38,50 @@ const FriendshipButton = ({ targetUserId, currentUserId, initialStatus = null })
       const response = await api.post(`/friends/${targetUserId}`);
       return response.data;
     },
+    onMutate: async () => {
+      // Prevent rapid clicks
+      if (isProcessing) return;
+      setIsProcessing(true);
+      
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ['friendship-status', currentUserId, targetUserId] });
+      
+      // Snapshot the previous value
+      const previousStatus = queryClient.getQueryData(['friendship-status', currentUserId, targetUserId]);
+      
+      // Optimistically update to pending_sent
+      queryClient.setQueryData(['friendship-status', currentUserId, targetUserId], {
+        success: true,
+        data: { status: 'pending_sent' }
+      });
+      
+      // Return a context object with the snapshotted value
+      return { previousStatus };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] });
       queryClient.invalidateQueries({ queryKey: ['friendships'] });
+      queryClient.invalidateQueries({ queryKey: ['friendship-status', currentUserId, targetUserId] });
       toast.success('Friend request sent!');
+      setIsProcessing(false);
     },
-    onError: (error) => {
+    onError: (error, variables, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousStatus) {
+        queryClient.setQueryData(['friendship-status', currentUserId, targetUserId], context.previousStatus);
+      }
+      
       console.error('Friend request error:', error.response?.data);
-      toast.error(error.response?.data?.message || 'Failed to send friend request');
+      const errorMessage = error.response?.data?.message || 'Failed to send friend request';
+      
+      // If friend request already sent, force refresh to get real state
+      if (errorMessage.includes('already sent')) {
+        queryClient.invalidateQueries({ queryKey: ['friendship-status', currentUserId, targetUserId] });
+        toast.error('Friend request was already sent');
+      } else {
+        toast.error(errorMessage);
+      }
+      setIsProcessing(false);
     },
   });
 
@@ -53,6 +94,7 @@ const FriendshipButton = ({ targetUserId, currentUserId, initialStatus = null })
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] });
       queryClient.invalidateQueries({ queryKey: ['friendships'] });
+      queryClient.invalidateQueries({ queryKey: ['friendship-status', currentUserId, targetUserId] });
       toast.success('Friend request accepted!');
     },
     onError: (error) => {
@@ -69,6 +111,7 @@ const FriendshipButton = ({ targetUserId, currentUserId, initialStatus = null })
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] });
       queryClient.invalidateQueries({ queryKey: ['friendships'] });
+      queryClient.invalidateQueries({ queryKey: ['friendship-status', currentUserId, targetUserId] });
       toast.success('Friend request rejected');
     },
     onError: (error) => {
@@ -85,6 +128,7 @@ const FriendshipButton = ({ targetUserId, currentUserId, initialStatus = null })
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] });
       queryClient.invalidateQueries({ queryKey: ['friendships'] });
+      queryClient.invalidateQueries({ queryKey: ['friendship-status', currentUserId, targetUserId] });
       toast.success('Friend request cancelled');
     },
     onError: (error) => {
@@ -101,6 +145,7 @@ const FriendshipButton = ({ targetUserId, currentUserId, initialStatus = null })
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] });
       queryClient.invalidateQueries({ queryKey: ['friendships'] });
+      queryClient.invalidateQueries({ queryKey: ['friendship-status', currentUserId, targetUserId] });
       toast.success('Friend removed');
     },
     onError: (error) => {
@@ -119,11 +164,11 @@ const FriendshipButton = ({ targetUserId, currentUserId, initialStatus = null })
         return (
           <button
             onClick={() => sendRequestMutation.mutate()}
-            disabled={sendRequestMutation.isLoading}
+            disabled={sendRequestMutation.isLoading || isProcessing}
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
             <UserPlus className="w-4 h-4" />
-            <span>{sendRequestMutation.isLoading ? 'Sending...' : 'Add Friend'}</span>
+            <span>{sendRequestMutation.isLoading || isProcessing ? 'Sending...' : 'Add Friend'}</span>
           </button>
         );
 
@@ -190,6 +235,8 @@ const FriendshipButton = ({ targetUserId, currentUserId, initialStatus = null })
   return (
     <div className="mt-4">
       {renderButton()}
+      {/* Debug Component - DISABLED after successful fix */}
+      {/* <FriendshipDebug targetUserId={targetUserId} currentUserId={currentUserId} /> */}
     </div>
   );
 };

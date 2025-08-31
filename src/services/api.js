@@ -49,6 +49,14 @@ export const endpoints = {
   post: (id) => `/posts/${id}`,
   likePost: (id) => `/posts/${id}/like`,
   
+  // Shares
+  sharePost: (id) => `/posts/${id}/share`,
+  unsharePost: (id) => `/posts/${id}/unshare`,
+  getPostShares: (id) => `/posts/${id}/shares`,
+  getShareStats: (id) => `/posts/${id}/share-stats`,
+  copyPostLink: (id) => `/posts/${id}/copy-link`,
+  getUserShares: '/my-shares',
+  
   // Profiles
   profiles: '/profiles', // Current user's profile
   profileUsers: '/profiles/users', // All other users
@@ -63,6 +71,12 @@ export const endpoints = {
   conversations: '/conversations',
   conversationMessages: (id) => `/conversations/${id}/messages`,
   startConversation: (id) => `/conversations/start/${id}`,
+  
+  // Search
+  search: '/search',
+  searchUsers: '/search/users',
+  searchPosts: '/search/posts',
+  searchSuggestions: '/search/suggestions',
 };
 
 export default api;

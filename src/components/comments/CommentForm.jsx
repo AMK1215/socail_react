@@ -36,6 +36,7 @@ const CommentForm = ({ postId, parentId = null, replyTo = null, onSuccess, onCan
     onSuccess: (data) => {
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['userPosts'] });
       queryClient.invalidateQueries({ queryKey: ['post', postId] });
       
       // Reset form

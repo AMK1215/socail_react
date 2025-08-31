@@ -174,17 +174,31 @@ const FriendsList = ({ userId }) => {
   // Send friend request mutation
   const sendRequestMutation = useMutation({
     mutationFn: async (targetUserId) => {
+      console.log('🚀 FriendsList: Sending friend request to user:', targetUserId);
       const response = await api.post(`/friends/${targetUserId}`);
+      console.log('✅ FriendsList: Friend request response:', response.data);
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (data, targetUserId) => {
+      console.log('🎉 FriendsList: Friend request successful:', data);
       queryClient.invalidateQueries({ queryKey: ['friends', userId] });
       queryClient.invalidateQueries({ queryKey: ['suggested-friends'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['friendship-status'] });
       toast.success('Friend request sent!');
     },
     onError: (error) => {
-      console.error('Friend request error:', error.response?.data);
-      toast.error(error.response?.data?.message || 'Failed to send friend request');
+      console.error('❌ FriendsList: Friend request error:', error.response?.data);
+      const errorMessage = error.response?.data?.message || 'Failed to send friend request';
+      
+      // Handle specific error cases
+      if (errorMessage.includes('already sent')) {
+        queryClient.invalidateQueries({ queryKey: ['friendship-status'] });
+        queryClient.invalidateQueries({ queryKey: ['suggested-friends'] });
+        toast.error('Friend request was already sent');
+      } else {
+        toast.error(errorMessage);
+      }
     },
   });
 
@@ -331,13 +345,13 @@ const FriendsList = ({ userId }) => {
 
     if (!friendsData.data.friends.data || friendsData.data.friends.data.length === 0) {
       return (
-        <div className="text-center py-8 text-gray-500">
-          <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-          <p>No friends yet</p>
-          <p className="text-sm text-gray-400">Start connecting with people!</p>
+        <div className="text-center py-6 sm:py-8 text-gray-500 px-4">
+          <Users className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 text-gray-300" />
+          <h3 className="text-lg sm:text-xl font-medium text-gray-900 mb-2">No friends yet</h3>
+          <p className="text-sm sm:text-base text-gray-400 mb-4">Start connecting with people!</p>
           <button
             onClick={() => setActiveTab('suggested')}
-            className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
           >
             Find Friends
           </button>
@@ -353,11 +367,11 @@ const FriendsList = ({ userId }) => {
           const isNewFriend = index === 0; // First friend in the list is the newest
           
           return (
-            <div key={friend.id} className={`flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-all duration-200 ${
+            <div key={friend.id} className={`flex items-center justify-between p-3 sm:p-4 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-all duration-200 ${
               isNewFriend ? 'border-blue-300 bg-blue-50' : ''
             }`}>
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+              <div className="flex items-center space-x-3 min-w-0 flex-1">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
                   {friend.profile?.avatar_url ? (
                     <img
                       src={friend.profile.avatar_url}
@@ -365,35 +379,40 @@ const FriendsList = ({ userId }) => {
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
-                    <span className="text-white font-bold text-sm">
+                    <span className="text-white font-bold text-sm sm:text-base">
                       {friend.name?.charAt(0).toUpperCase()}
                     </span>
                   )}
                 </div>
-                <div>
-                  <div className="flex items-center space-x-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center space-x-2 mb-1">
                     <Link
                       to={`/profile/${friend.id}`}
-                      className="font-medium text-gray-900 hover:text-blue-600 transition-colors"
+                      className="font-medium text-gray-900 hover:text-blue-600 transition-colors text-sm sm:text-base truncate"
                     >
                       {friend.name}
                     </Link>
                     {isNewFriend && (
-                      <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full font-medium">
+                      <span className="hidden sm:inline-block px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full font-medium flex-shrink-0">
                         New Friend
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-xs sm:text-sm text-gray-500 truncate">
                     @{friend.profile?.username || 'user'}
                   </p>
+                  {isNewFriend && (
+                    <span className="sm:hidden inline-block px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full font-medium mt-1">
+                      New
+                    </span>
+                  )}
                 </div>
               </div>
-              <div className="flex space-x-2">
+              <div className="flex space-x-1 sm:space-x-2 flex-shrink-0">
                  <button
                    onClick={() => handleStartConversation(friend.id)}
                    disabled={startConversationMutation.isLoading || checkingConversation}
-                   className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                   className="p-2 sm:p-2.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                    title="Send message"
                  >
                    {startConversationMutation.isLoading || checkingConversation ? (
@@ -408,7 +427,7 @@ const FriendsList = ({ userId }) => {
                      // You can implement this by passing a callback from parent
                      console.log('Quick chat with:', friend.name);
                    }}
-                   className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors transition-all duration-200 hover:scale-105"
+                   className="hidden sm:block p-2 sm:p-2.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors transition-all duration-200 hover:scale-105"
                    title="Quick chat"
                  >
                    <MessageCircle className="w-4 h-4" />
@@ -432,7 +451,6 @@ const FriendsList = ({ userId }) => {
 
     // Add defensive check for data structure
     if (!pendingData?.data) {
-      console.error('Pending data structure:', pendingData);
       return (
         <div className="text-center py-8 text-gray-500">
           <p>Error loading pending requests</p>
@@ -442,10 +460,10 @@ const FriendsList = ({ userId }) => {
 
     if (pendingData.data.length === 0) {
       return (
-        <div className="text-center py-8 text-gray-500">
-          <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-          <p>No pending requests</p>
-          <p className="text-sm text-gray-400">When someone sends you a friend request, it will appear here</p>
+        <div className="text-center py-6 sm:py-8 text-gray-500 px-4">
+          <Clock className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 text-gray-300" />
+          <h3 className="text-lg sm:text-xl font-medium text-gray-900 mb-2">No pending requests</h3>
+          <p className="text-sm sm:text-base text-gray-400">When someone sends you a friend request, it will appear here</p>
         </div>
       );
     }
@@ -459,11 +477,11 @@ const FriendsList = ({ userId }) => {
           const isProcessing = acceptRequestMutation.isLoading || rejectRequestMutation.isLoading;
           
           return (
-            <div key={requester.id} className={`flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 transition-all duration-200 ${
+            <div key={requester.id} className={`flex items-center justify-between p-3 sm:p-4 bg-white rounded-lg border border-gray-200 transition-all duration-200 ${
               isProcessing ? 'opacity-75' : 'hover:shadow-sm'
             }`}>
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+              <div className="flex items-center space-x-3 min-w-0 flex-1">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
                   {requester.profile?.avatar_url ? (
                     <img
                       src={requester.profile.avatar_url}
@@ -471,31 +489,31 @@ const FriendsList = ({ userId }) => {
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
-                    <span className="text-white font-bold text-sm">
+                    <span className="text-white font-bold text-sm sm:text-base">
                       {requester.name?.charAt(0).toUpperCase()}
                     </span>
                   )}
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <Link
                     to={`/profile/${requester.id}`}
-                    className="font-medium text-gray-900 hover:text-blue-600 transition-colors"
+                    className="font-medium text-gray-900 hover:text-blue-600 transition-colors text-sm sm:text-base block truncate"
                   >
                     {requester.name}
                   </Link>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-xs sm:text-sm text-gray-500 truncate">
                     @{requester.profile?.username || 'user'}
                   </p>
-                  <p className="text-xs text-blue-600 font-medium">
+                  <p className="text-xs sm:text-sm text-blue-600 font-medium mt-1">
                     Wants to be your friend
                   </p>
                 </div>
               </div>
-              <div className="flex space-x-2">
+              <div className="flex space-x-1 sm:space-x-2 flex-shrink-0">
                 <button 
                   onClick={() => handleAcceptRequest(friendshipId)}
                   disabled={isProcessing}
-                  className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-2 sm:p-2.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Accept request"
                 >
                   {acceptRequestMutation.isLoading ? (
@@ -507,7 +525,7 @@ const FriendsList = ({ userId }) => {
                 <button 
                   onClick={() => handleRejectRequest(friendshipId)}
                   disabled={isProcessing}
-                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-2 sm:p-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Reject request"
                 >
                   {rejectRequestMutation.isLoading ? (
@@ -545,9 +563,10 @@ const FriendsList = ({ userId }) => {
 
     if (suggestedData.data.length === 0) {
       return (
-        <div className="text-center py-8 text-gray-500">
-          <UserPlus className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-          <p>No suggestions available</p>
+        <div className="text-center py-6 sm:py-8 text-gray-500 px-4">
+          <UserPlus className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 text-gray-300" />
+          <h3 className="text-lg sm:text-xl font-medium text-gray-900 mb-2">No suggestions available</h3>
+          <p className="text-sm sm:text-base text-gray-400">Check back later for friend suggestions</p>
         </div>
       );
     }
@@ -555,9 +574,9 @@ const FriendsList = ({ userId }) => {
     return (
       <div className="space-y-3">
         {suggestedData.data.map((user) => (
-          <div key={user.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+          <div key={user.id} className="flex items-center justify-between p-3 sm:p-4 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
+            <div className="flex items-center space-x-3 min-w-0 flex-1">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
                 {user.profile?.avatar_url ? (
                   <img
                     src={user.profile.avatar_url}
@@ -565,19 +584,19 @@ const FriendsList = ({ userId }) => {
                     className="w-full h-full rounded-full object-cover"
                   />
                 ) : (
-                  <span className="text-white font-bold text-sm">
+                  <span className="text-white font-bold text-sm sm:text-base">
                     {user.name?.charAt(0).toUpperCase()}
                   </span>
                 )}
               </div>
-              <div>
+              <div className="min-w-0 flex-1">
                 <Link
                   to={`/profile/${user.id}`}
-                  className="font-medium text-gray-900 hover:text-blue-600 transition-colors"
+                  className="font-medium text-gray-900 hover:text-blue-600 transition-colors text-sm sm:text-base block truncate"
                 >
                   {user.name}
                 </Link>
-                <p className="text-sm text-gray-500">
+                <p className="text-xs sm:text-sm text-gray-500 truncate">
                   @{user.profile?.username || 'user'}
                 </p>
               </div>
@@ -585,7 +604,7 @@ const FriendsList = ({ userId }) => {
             <button 
               onClick={() => handleSendFriendRequest(user.id)}
               disabled={sendRequestMutation.isLoading}
-              className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 sm:px-4 py-2 bg-blue-600 text-white text-xs sm:text-sm rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
             >
               {sendRequestMutation.isLoading ? 'Sending...' : 'Add Friend'}
             </button>
@@ -609,26 +628,27 @@ const FriendsList = ({ userId }) => {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
-      {/* Tabs */}
+    <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200">
+      {/* Mobile-first Tabs */}
       <div className="border-b border-gray-200">
-        <nav className="flex space-x-8 px-6">
+        <nav className="flex px-3 sm:px-6 overflow-x-auto scrollbar-hide">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                className={`flex items-center space-x-1 sm:space-x-2 py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap min-w-0 flex-shrink-0 ${
                   activeTab === tab.id
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
+                style={{ marginRight: tab.id === 'suggested' ? 0 : '1rem' }}
               >
-                <Icon className="w-4 h-4" />
-                <span>{tab.label}</span>
+                <Icon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span className="truncate">{tab.label}</span>
                 {tab.count > 0 && (
-                  <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
+                  <span className="bg-gray-100 text-gray-600 text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full flex-shrink-0 min-w-[20px] text-center">
                     {tab.count}
                   </span>
                 )}
@@ -638,17 +658,17 @@ const FriendsList = ({ userId }) => {
         </nav>
       </div>
 
-      {/* Content */}
-      <div className="p-6">
+      {/* Mobile-first Content */}
+      <div className="p-3 sm:p-6">
         {renderContent()}
       </div>
 
-      {/* Floating Notifications */}
-      <div className="fixed top-4 right-4 z-50 space-y-2">
+      {/* Mobile-responsive Floating Notifications */}
+      <div className="fixed top-4 right-4 left-4 sm:left-auto z-50 space-y-2 max-w-sm sm:max-w-none mx-auto sm:mx-0">
         {notifications.map((notification) => (
           <div
             key={notification.id}
-            className={`px-4 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
+            className={`px-3 sm:px-4 py-2 sm:py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
               notification.type === 'success' 
                 ? 'bg-green-500' 
                 : notification.type === 'error' 
@@ -656,11 +676,11 @@ const FriendsList = ({ userId }) => {
                 : 'bg-blue-500'
             }`}
           >
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium">{notification.message}</span>
+            <div className="flex items-center justify-between">
+              <span className="text-xs sm:text-sm font-medium pr-2 flex-1">{notification.message}</span>
               <button
                 onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
-                className="text-white hover:text-gray-200 ml-2"
+                className="text-white hover:text-gray-200 text-lg leading-none flex-shrink-0"
               >
                 ×
               </button>
